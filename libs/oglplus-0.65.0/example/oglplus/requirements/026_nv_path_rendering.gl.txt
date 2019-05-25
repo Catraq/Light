@@ -1,4 +1,0 @@
-GL_ARB_separate_shader_objects
-GL_EXT_direct_state_access
-GL_NV_path_rendering
-GL_VERSION_3_2

@@ -1,2 +1,0 @@
-pool_pictogram
-small_tile

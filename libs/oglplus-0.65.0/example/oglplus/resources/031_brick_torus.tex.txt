@@ -1,1 +1,0 @@
-bricks_color_hmap
