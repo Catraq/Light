@@ -1,0 +1,105 @@
+
+
+
+VERTEX
+
+	Format 
+		- Normal 
+		- Position
+		- indices 
+
+	Handler
+		- Offset
+		- Count
+		
+		
+	Vertex buffer have vertices and indices. 
+	Vertex buffer handler is offset and count within indices.  
+	Vertex buffer is shared with physic and renderer. 
+	
+	Support for adding and remove in vertex buffer. Linked list with handlers? 
+
+	
+PHYSIC
+	
+	Body( TODO )
+		position : vec3 
+		rotation : vec3 
+		velocity : vec3 
+		mass 	 : float 
+		
+		
+	Handler
+		- Offset : uint
+		- Count  : uint
+		- Vertex handler  : handler? 
+		- Bounding box size : vec3
+		- Next handler 
+		
+	Physic:
+		- KD-tree indices : uint - Location in KD-tree 
+		- KD-tree indices lookup : uint  - global body index to KD-tree indice.  
+		- Bodies 
+		- Handlers 
+		
+	
+	Shared buffer for all bodies.  
+	
+	Takes vertex buffer handler as collision data, returns handler to physic 
+	instance using collision data.
+	Physic instance have offset and count in shared body buffer. Is linked list. 
+	
+
+	KD-Tree generated from body buffer in indices format. Indices describes 
+	tree structure. 
+		How to identify body to physic instance in KD-tree? 
+		Using global body index in a kd-tree indice lookup table.  
+		
+	Indices 
+				| x |
+			  | x | x | 
+		  | x | x | x | x |
+		  
+	x = Body index 
+	
+	
+	Collision dection: For each list-node traverse list 
+	and find closest using KD-tree indices. Check with bounding box
+	and the triangle vs triange intersection. 
+	Apply forces to the colliding bodies. 
+	
+	
+	
+	
+	
+RENDER
+
+	Handler
+		Physic handler 
+		
+
+
+	Static geometry pipeline input:
+		- View 		  : mat4 
+		- Translation : mat4 
+		- Normal 	  : vec3 
+		- Position 	  : vec3 
+
+	
+	 
+	
+	
+	Use physic KD-tree for finding visible instances 
+	and only render visible indices using vertex buffer 
+	handler. 
+	
+	
+	
+	
+	
+	
+	 
+	
+	
+	
+	
