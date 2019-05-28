@@ -9,6 +9,8 @@
 #include <math/vec.h>
 #include <math/mat4x4.h>
 
+#include <vertex_buffer.h>
+
 
 
 struct frame_info
@@ -24,7 +26,7 @@ struct frame_info_update_result
 	vec2 mouse_delta;
 };
 
-frame_info_update_result frame_info_update( frame_info *info )
+frame_info_update_result frame_info_update(frame_info *info)
 {
 	frame_info_update_result result;
 	
@@ -39,7 +41,7 @@ frame_info_update_result frame_info_update( frame_info *info )
 	mouse_tmp.x = -( half_width_f/info->width -  mouse.x/info->width );
 	mouse_tmp.y =  ( half_height_f/info->height - mouse.y/info->height );
 	
-	result.mouse_delta = vec2_substract( &info->mouse, &mouse_tmp); 
+	result.mouse_delta = v2sub(info->mouse, mouse_tmp); 
 	info->mouse = mouse_tmp;
 	
 	
@@ -93,14 +95,12 @@ int main( int args, char *argv[])
 	
 	//Init render engine
 	renderer r_renderer;
-	renderer_initialize( &r_renderer );
+	renderer_initialize(&r_renderer);
 	
 	//Init render handle for the object
 	render_instance model_render_handler;
 	{
-		renderer_instance_initialize( &r_renderer, &model_render_handler, &buffer, &model );
-	
-		renderer_instance_buffer_bind(&r_renderer, &model_render_handler, renderbuffer); 
+		renderer_instance_initialize(&r_renderer, &model_render_handler,&buffer, &model);
 	}
 	
 	frame_info r_frame_info;
@@ -117,7 +117,7 @@ int main( int args, char *argv[])
 	{
 		//Setup camera. 
 		camera_view_state player_camera_view;
-		camera_view_projection( &player_camera_view, mat4x4_perspective( ratio, fov, close, far ));
+		camera_view_projection( &player_camera_view, m4x4pers( ratio, fov, close, far ));
 		player_camera_view.position = vec3{ 0.0f, 0.0f, 20.0f };
 		player_camera_view.rotation = vec3{ 0.0f, 0.0f, 0.0f };
 		view = camera_view_matrix(&player_camera_view);
@@ -139,7 +139,7 @@ int main( int args, char *argv[])
 		
 		//TODO: This should be done in some other way...
 		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ){
-			model_body[0].rotation = vec3_add( &model_body[0].rotation, &update_camera_rotation( frame_result.mouse_delta ) );
+			model_body[0].rotation = v3add(model_body[0].rotation, update_camera_rotation(frame_result.mouse_delta));
 		}
 		
 		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS ){

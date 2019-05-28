@@ -1,0 +1,8 @@
+set(TOOL OBJTORAW)
+
+add_executable(${TOOL} src/objtoraw.cpp) 
+
+
+target_link_libraries(${TOOL} ${GLEW_LIBRARIES})
+target_link_libraries(${TOOL} glfw)
+target_link_libraries(${TOOL} ${OPENGL_LIBRARIES})
