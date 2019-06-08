@@ -22,26 +22,5 @@ struct frame_info
 	uint32_t height;
 };
 
-struct scene_instance 
-{
-
-	struct frame_info frame_info;
-
-	struct camera_view_state view_state;
-	struct camera_input_state input_state;
-
-	/* Physic instance */
-	struct physic physic;
-
-	/* Render instance */
-	struct renderer renderer;
-
-	/* Vertexbuffer shared between renderer and physic */
-	struct vertex_buffer vertex_buffer;
-};
-
-int scene_initialize(struct scene_instance *instance);
-int scene_render(struct scene_instance *instance, const float deltatime);
-
 #endif 
 

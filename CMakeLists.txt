@@ -10,7 +10,7 @@ include_directories(${OpenGL_INCLUDE_DIR})
 
 find_package(glfw3 3.3 REQUIRED)
 
-include_directories("src/")
+include_directories("${PROJECT_SOURCE_DIR}/src/")
 
 
 set(SOURCES 
@@ -29,8 +29,8 @@ set(SOURCES
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-add_subdirectory(tools/rawviewer)
 add_subdirectory(tools/objtoraw)
+add_subdirectory(tools/rawviewer)
 
 target_link_libraries(${PROJECT_NAME} ${GLEW_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} glfw)

@@ -1,6 +1,10 @@
 set(TOOL OBJTORAW)
 
-add_executable(${TOOL} src/objtoraw.cpp) 
+set(SOURCES 
+	"${PROJECT_SOURCE_DIR}/src/model/raw_model.cpp"
+	"src/objtoraw.cpp"
+)
+add_executable(${TOOL} ${SOURCES}) 
 
 
 target_link_libraries(${TOOL} ${GLEW_LIBRARIES})

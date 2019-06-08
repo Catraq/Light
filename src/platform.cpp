@@ -23,7 +23,7 @@ int platform_initialize(void)
 	window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
 	if (!window)
 	{
-		printf("Failed to init GLFW \n");
+		fprintf(stderr,"Failed to init GLFW \n");
 		glfwTerminate();
 		return -1;
 	}
@@ -39,7 +39,7 @@ int platform_initialize(void)
 	glewExperimental = true;
 	if (glewInit() != GLEW_OK)
 	{
-		printf("Failed to init Glew \n");
+		fprintf(stderr,"Failed to init Glew \n");
 		glfwTerminate();
 		return -1;
 	}

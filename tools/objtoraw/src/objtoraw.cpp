@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 
-#include <model/raw_model.h>
-#include <model/obj_model.h>
+#include "model/raw_model.h"
+#include "model/obj_model.h"
 
 
 int main( int args, char *argv[])
@@ -24,7 +26,7 @@ int main( int args, char *argv[])
 		if(fp)
 		{
 			
-			raw_model * model = raw_model_create(src_model.vertices, src_model.vertex_count, src_model.indices,  src_model.indice_count);
+			struct raw_model * model = raw_model_create(src_model.vertices, src_model.vertex_count, src_model.indices,  src_model.indice_count);
 			if(model)
 			{									  
 				raw_model_save(fp, model);

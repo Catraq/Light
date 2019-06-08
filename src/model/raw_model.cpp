@@ -55,6 +55,20 @@ void raw_model_release(struct raw_model * model)
 	free(model);
 }
 
+int32_t raw_model_size(FILE *fp, uint32_t *vertex_size, uint32_t *indice_size)
+{
+	struct raw_model model_header;
+	uint32_t read_result = (uint32_t)fread(&model_header, 1, sizeof(struct raw_model), fp);
+	if(read_result == sizeof(model_header))
+	{
+		*vertex_size = model_header.vertex_count * sizeof(struct vertex);
+		*indice_size = model_header.indice_count * sizeof(uint32_t);
+		return 1;
+	}
+
+	return -1;
+}
+
 struct raw_model * raw_model_load(FILE *fp)
 {
 	struct raw_model *result = 0;

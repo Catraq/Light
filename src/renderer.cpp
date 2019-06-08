@@ -34,8 +34,8 @@ void renderer_initialize(struct renderer *render)
 		
 	
 	render->program = glCreateProgram();
-	GLuint vertex_shader = glCreateShader( GL_VERTEX_SHADER );
-	GLuint fragment_shader = glCreateShader( GL_FRAGMENT_SHADER );
+	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	
 	const GLchar *vertex_source = (const GLchar *)vertex_shader_source;
 	const GLchar *fragment_source = (const GLchar *)fragment_shader_source;
@@ -119,32 +119,16 @@ void renderer_deinitialize(struct renderer *render)
 
 void renderer_render_begin(struct renderer *render, struct mat4x4 *view, uint32_t width,  uint32_t height)
 {
-	glViewport(0,0 , width, height);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f );
-	
-	{
-		glBindBuffer( GL_UNIFORM_BUFFER, render->scenebuffer);
-		mat4x4 *view_dest = (struct mat4x4 *)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-		memcpy(view_dest, view, sizeof(struct mat4x4) );
-		glUnmapBuffer(GL_UNIFORM_BUFFER);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	}
-
-	glUseProgram(render->program);
-	glEnable( GL_DEPTH_TEST );
-	glDisable( GL_BLEND );
 }
 
 void renderer_instance_renderer(struct renderer *render, struct render_instance *instance)
 {
 	
 	glBindVertexArray(instance->vertexarray);
-	
 	glDrawElementsInstanced(GL_TRIANGLES, 
 		  instance->vertex_count, 
 		  GL_UNSIGNED_INT, 
-		  (const GLuint*)(instance->indice_offset * sizeof( uint32_t )), 
+		  (const GLuint*)(instance->indice_offset * sizeof(uint32_t)), 
 		  instance->instance_count
 	);
 }
