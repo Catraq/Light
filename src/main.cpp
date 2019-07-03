@@ -506,7 +506,7 @@ int main(int args, char *argv[])
 
 		glViewport(0, 0, scene.frame_info.width, scene.frame_info.height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	
 		
 		glEnable(GL_DEPTH_TEST);

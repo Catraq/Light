@@ -13,21 +13,20 @@ find_package(glfw3 3.3 REQUIRED)
 include_directories("${PROJECT_SOURCE_DIR}/src/")
 
 
-set(SOURCES 
-	"src/math/mat4x4.cpp"
-	"src/math/quaternion.cpp"
-	"src/camera.cpp"
-	"src/camera_input.cpp"
-	"src/physic.cpp"
-	"src/renderer.cpp"
-	"src/vertex_buffer.cpp"
-	"src/model/raw_model.cpp"
-	"src/platform.cpp"
-	"src/scene.cpp"
-	"src/main.cpp"	
+set(LIGHT_SOURCES 
+	"${PROJECT_SOURCE_DIR}/src/math/mat4x4.cpp"
+	"${PROJECT_SOURCE_DIR}/src/math/quaternion.cpp"
+	"${PROJECT_SOURCE_DIR}/src/camera.cpp"
+	"${PROJECT_SOURCE_DIR}/src/camera_input.cpp"
+	"${PROJECT_SOURCE_DIR}/src/physic.cpp"
+	"${PROJECT_SOURCE_DIR}/src/renderer.cpp"
+	"${PROJECT_SOURCE_DIR}/src/vertex_buffer.cpp"
+	"${PROJECT_SOURCE_DIR}/src/model/raw_model.cpp"
+	"${PROJECT_SOURCE_DIR}/src/platform.cpp"
+	"${PROJECT_SOURCE_DIR}/src/scene.cpp"
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${LIGHT_SOURCES} src/main.cpp)
 
 add_subdirectory(tools/objtoraw)
 add_subdirectory(tools/rawviewer)
