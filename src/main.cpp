@@ -1,37 +1,13 @@
 #include <time.h>
-#include <stdio.h>
 #include <stdint.h>
 
 
 #include "scene.h"
 
 
-int load_model(struct vertex_buffer *buffer, struct vertex_buffer_handler *handler, const char *filename)
-{
-
-	int result = -1;
-	FILE *fp = fopen(filename, "rb");
-	if(fp)
-	{
-		struct raw_model *raw_model_data = raw_model_load(fp);
-		if(raw_model_data)
-		{
-			uint32_t vertex_count = 0;
-			uint32_t indice_count = 0;
-
-			struct vertex *vertices = raw_model_vertices(raw_model_data, &vertex_count);
-			uint32_t *indices = raw_model_indices(raw_model_data, &indice_count);
-			
-			*handler = vertex_buffer_push(buffer, vertices, vertex_count, indices, indice_count); 					
-			raw_model_release(raw_model_data);
-			result = 1;
-		}
-		fclose(fp);
-	}
-	return result;
-}
-
-
+#include "vertex_buffer.h"
+#include "vertex_buffer_model.h"
+#include "vertex_instance.h"
 
 
 struct frame_info_update_result
@@ -39,6 +15,13 @@ struct frame_info_update_result
 	struct vec2 mouse_delta;
 };
 
+
+struct frame_info
+{
+	struct vec2 mouse;
+	uint32_t width;
+	uint32_t height;
+};
 
 static struct frame_info_update_result frame_info_update(struct frame_info *info)
 {
@@ -63,38 +46,6 @@ static struct frame_info_update_result frame_info_update(struct frame_info *info
 }
 
 
-int model_data_size(const char *model_str[], int model_str_count, uint32_t *vertex_size, uint32_t *indice_size)
-{
-	int result = 1;
-	uint32_t indice_total_size = 0;
-	uint32_t vertex_total_size = 0;
-
-	for(int i = 0; i < model_str_count; i++){
-		FILE *fp = fopen(model_str[i], "rb");
-		if(fp)
-		{
-			uint32_t vertex_size, indice_size;
-			uint32_t loaded = raw_model_size(fp, &vertex_size, &indice_size);
-			if(loaded < 0){
-				printf("failed to read size of model in file: %s \n", model_str[i]);
-				result = -1;
-			}else{
-				indice_total_size += indice_size;
-				vertex_total_size += vertex_size;
-			}
-			fclose(fp);
-		}
-		else{
-			printf("failed to open file: %s \n", model_str[i]);
-			result = -1;
-		}
-	}
-
-	*vertex_size = vertex_total_size;
-	*indice_size = indice_total_size;
-
-	return result;
-}
 
 const char vertex_shader_source[] = 
 {
@@ -273,15 +224,6 @@ struct scene_instance
 
 };
 
-struct vertex_instance
-{
-	GLuint vertex_array;
-
-	GLuint instance_buffer;
-
-	GLuint indice_count;
-	GLuint indice_offset;
-};
 
 
 void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_index, uint32_t width, uint32_t height)
@@ -308,6 +250,19 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 }
 
 
+#if 0
+struct vertex_instance
+{
+	GLuint vertex_array;
+
+	GLuint instance_buffer;
+
+	GLuint indice_count;
+	GLuint indice_offset;
+};
+
+#ifndef VERTEX_INSTANCE_H
+#define VERTEX_INSTANCE_H
 void vertex_instance_initialize(struct vertex_instance *instance, struct vertex_buffer *buffer, struct vertex_buffer_handler *handler)
 {
 	glGenBuffers(1, &instance->instance_buffer);
@@ -345,46 +300,35 @@ void vertex_instance_update(GLuint buffer, void *src, GLuint src_len)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-
-int load_vertex_buffer(struct vertex_buffer *vertex_buffer, struct vertex_buffer_handler *model,
-const char *model_path[], const int model_count)
-{
-	int result = 0;
-	uint32_t indice_total_size = 0;
-       	uint32_t vertex_total_size = 0;
-
-	result = model_data_size(model_path, model_count, &vertex_total_size, &indice_total_size);
-	if(result < 0){
-		return -1;	
-	}
-
-
-	vertex_buffer_initialize(vertex_buffer, vertex_total_size, indice_total_size);
-
-
-	
-	result = 1;
-	for(int i = 0; i < model_count; i++){
-		int loaded = load_model(vertex_buffer, &model[i], model_path[i]);
-		if(!loaded){
-			printf("failed to open file: %s \n", model_path[i]);
-			result = -1;
-		}
-	}
-
-	if(result < 0){
-		return -1;	
-	}
-
-	
-	return result;
-}
-
+#endif //VERTEX_INSTANCE_H
+#endif
 
 int main(int args, char *argv[])
 {
 	int result;
 	struct scene_instance scene;
+
+	const int model_count = 2;
+	const char *model_str[model_count] = {"data/cube.raw", "data/ship.raw"};	
+
+	struct vertex_buffer vertex_buffer;
+	struct vertex_buffer_handler model[model_count];
+
+
+	const int cw = 10, ch = 10;	
+	const int instance_cube_count = ch*cw;
+	struct vertex_instance instance_cube;
+
+	struct cube_instance{
+		struct mat4x4 translation;
+		struct vec3 color;	
+	};
+
+	const int translation_offset = 0;
+		
+	const int instance_ship_count = 3;
+	struct vertex_instance instance_ship;
+
 
 	result = platform_initialize();
 	if(result < 0)
@@ -394,13 +338,8 @@ int main(int args, char *argv[])
 	}
 
 
-	const int model_count = 2;
-	const char *model_str[model_count] = {"data/cube.raw", "data/ship.raw"};	
 
-	struct vertex_buffer vertex_buffer;
-	struct vertex_buffer_handler model[model_count];
-
-	result = load_vertex_buffer(&vertex_buffer, model, model_str, model_count);
+	result = vertex_buffer_model_load(&vertex_buffer, model, model_str, model_count);
 	if(result < 0){
 		fprintf(stderr, "Error: could not load vertex buffer data. ");	
 		exit(EXIT_FAILURE);
@@ -422,17 +361,6 @@ int main(int args, char *argv[])
 
 
 
-	const int cw = 10, ch = 10;	
-	const int instance_cube_count = ch*cw;
-	struct vertex_instance instance_cube;
-
-	struct cube_instance{
-		struct mat4x4 translation;
-		struct vec3 color;	
-	};
-
-	const int translation_offset = 0;
-		
 	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[0]);
 
 
@@ -467,8 +395,6 @@ int main(int args, char *argv[])
 	}
 
 
-	const int instance_ship_count = 3;
-	struct vertex_instance instance_ship;
 	vertex_instance_initialize(&instance_ship, &vertex_buffer, &model[1]);
 
 	glBindVertexArray(instance_ship.vertex_array);
