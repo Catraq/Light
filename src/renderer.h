@@ -5,8 +5,6 @@
 
 #include "math/vec.h"
 #include "math/mat4x4.h"
-#include "vertex_buffer.h"
-#include "physic.h"
 
 
 struct render_instance
@@ -45,5 +43,5 @@ void renderer_instance_initialize(struct renderer *render, struct vertex_handle 
 void renderer_instance_renderer(struct renderer *render, struct render_instance *instance);
 
 
-void renderer_instance_dwrite_instances(render_instance *instance, physic_body *bodies, uint32_t count);
+//void renderer_instance_dwrite_instances(render_instance *instance, physic_body *bodies, uint32_t count);
 #endif //RENDERER_H

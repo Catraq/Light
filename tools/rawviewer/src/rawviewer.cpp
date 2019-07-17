@@ -3,9 +3,6 @@
 #include <camera.h>
 #include <camera_input.h>
 
-#include <physic.h>
-#include <renderer.h>
-
 #include <math/vec.h>
 #include <math/mat4x4.h>
 

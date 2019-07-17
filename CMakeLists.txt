@@ -18,13 +18,11 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/math/quaternion.cpp"
 	"${PROJECT_SOURCE_DIR}/src/camera.cpp"
 	"${PROJECT_SOURCE_DIR}/src/camera_input.cpp"
-	"${PROJECT_SOURCE_DIR}/src/renderer.cpp"
 	"${PROJECT_SOURCE_DIR}/src/vertex_buffer.cpp"
 	"${PROJECT_SOURCE_DIR}/src/vertex_instance.cpp"
 	"${PROJECT_SOURCE_DIR}/src/vertex_buffer_model.cpp"
 	"${PROJECT_SOURCE_DIR}/src/model/raw_model.cpp"
 	"${PROJECT_SOURCE_DIR}/src/platform.cpp"
-	"${PROJECT_SOURCE_DIR}/src/scene.cpp"
 )
 
 add_executable(${PROJECT_NAME} ${LIGHT_SOURCES} src/main.cpp)
