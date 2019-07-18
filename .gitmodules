@@ -1,0 +1,3 @@
+[submodule "libs/joystick-ps3"]
+	path = libs/joystick-ps3
+	url = https://github.com/Catraq/joystick-ps3.git

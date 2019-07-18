@@ -14,9 +14,13 @@
 #include "model/raw_model.h"
 
 
+#include "render_framebuffer.h"
+
 #include "vertex_buffer.h"
 #include "vertex_buffer_model.h"
 #include "vertex_instance.h"
+
+#include <joystick_ps3.h>
 
 
 struct frame_info_update_result
@@ -64,15 +68,18 @@ const char vertex_shader_source[] =
 	" layout ( location = 2 ) in vec3 r_color; 		\n"
 	" layout ( location = 3 ) in mat4 r_model; 		\n"
 	" out vec3 v_normal; 					\n"
+	" out vec3 v_position; 					\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
 	" };							\n"
 	" void main(){						\n"
-	" 	vec4 n = normalize(vec4(r_normal, 0.0));		\n"
-	" 	vec4 m_n = normalize(r_model * n);			\n"
-	" 	vec4 c_n = normalize(view * m_n);			\n"
-	" 	v_normal = c_n.xyz;				\n"
-	" 	gl_Position = view  * r_model *vec4(r_position , 1.0f );        \n"
+	" 	mat4 mn = transpose(inverse(r_model));		\n"
+	" 	vec4 n = normalize(vec4(r_normal, 0.0));	\n"
+	" 	vec4 m_n = normalize(mn * n);			\n"
+	" 	v_normal = m_n.xyz;				\n"
+	"   	vec4 w_position = r_model * vec4(r_position , 1.0f ); \n"	
+	"	v_position = w_position.xyz;			\n"
+	" 	gl_Position = view  * w_position; \n"
 	"} 							\n"
 };
 
@@ -82,9 +89,12 @@ const char fragment_shader_source[] =
 	"#version 330 core 				\n"
 	"out vec4 fcolor; 				\n"
 	"in vec3  v_normal;				\n"
+	"in vec3 v_position;				\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
+	"layout(location=1) out vec3 position_texture;	\n"
 	"void main(){					\n"
 	"	normal_texture = normalize(v_normal);	\n"
+	"	position_texture = v_position;		\n"
 	"}						\n"
 };
 
@@ -197,7 +207,7 @@ struct scene_instance
 	struct frame_info frame_info;
 
 	struct camera_view_state view_state;
-
+	struct camera_update_state update_state;
 
 };
 
@@ -225,7 +235,68 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 	view_state->rotation = (vec3){0.0f, 0.0f, 0.0f};
 
 }
+	
+struct render_quad{
+	GLuint program;
+	GLuint vertex_array;
+	GLuint vertex_buffer;
+	GLuint element_buffer;
+};
 
+void quad_initialize(struct render_quad *quad, const char *vertex_shader_source, const char *fragment_shader_source)
+	{
+		
+		const GLfloat quad_vertices[] = {
+			-1.0f, 1.0f, 
+			1.0f, 1.0f,
+			1.0, -1.0f,
+			-1.0f, -1.0f
+		};	
+
+		const GLuint quad_element[] = {
+			1, 0, 2,
+			2, 0, 3
+		};
+	
+
+		GLuint quad_program = create_program(vertex_shader_source, fragment_shader_source);
+	
+		GLuint quad_vertex_array, quad_vertex_buffer, quad_element_buffer;
+		glGenVertexArrays(1, &quad_vertex_array);
+		glBindVertexArray(quad_vertex_array);
+
+		glGenBuffers(1, &quad_element_buffer);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof quad_element, quad_element, GL_STATIC_DRAW); 
+
+
+		glGenBuffers(1, &quad_vertex_buffer);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof quad_vertices, quad_vertices, GL_STATIC_DRAW); 
+
+		const GLuint quad_vertex_index = 0;
+		glEnableVertexAttribArray(quad_vertex_index);
+		glVertexAttribPointer(quad_vertex_index, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+		glBindVertexArray(0);
+
+		quad->program 		= quad_program;
+		quad->vertex_array 	= quad_vertex_array;
+		quad->element_buffer 	= quad_element_buffer;
+		quad->vertex_buffer 	= quad_vertex_buffer;
+
+	}
+
+	void quad_render(struct render_quad *quad)
+	{
+	
+		glUseProgram(quad->program);
+		glBindVertexArray(quad->vertex_array);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad->element_buffer);
+		glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);	
+		glBindVertexArray(0);
+
+	}
 
 int main(int args, char *argv[])
 {
@@ -238,15 +309,12 @@ int main(int args, char *argv[])
 	struct vertex_buffer vertex_buffer;
 	struct vertex_buffer_handler model[model_count];
 
+	struct render_framebuffer framebuffer;
 
-	const int cw = 100, ch = 100;
-	const int instance_cube_count = ch*cw;
+
+	const int cw = 10, ch = 10, cd = 10;
+	const int instance_cube_count = ch*cw*cd;
 	struct vertex_instance instance_cube;
-
-	struct cube_instance{
-		struct mat4x4 translation;
-		struct vec3 color;	
-	};
 
 	const int translation_offset = 0;
 		
@@ -261,6 +329,14 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	platform_update();
+
+	result = camera_input_initialize(&scene.update_state, "/dev/input/js0");
+	if(result < 0){
+		fprintf(stderr, "Error: could not initialize input.\n");
+		exit(EXIT_FAILURE);
+	}
+
+
 
 
 	result = vertex_buffer_model_load(&vertex_buffer, model, model_str, model_count);
@@ -285,7 +361,7 @@ int main(int args, char *argv[])
 
 
 
-	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[0]);
+	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[1]);
 
 
 	glBindVertexArray(instance_cube.vertex_array);
@@ -293,13 +369,6 @@ int main(int args, char *argv[])
 
 	GLuint translation_index = glGetAttribLocation(program[0], "r_model");
 	translation_attribute_pointer(translation_index, sizeof(struct mat4x4), 0);
-
-#if 0
-	GLuint color_index = glGetAttribLocation(program[0], "r_color");
-	glEnableVertexAttribArray(color_index);
-	glVertexAttribPointer(color_index, 3, GL_FLOAT, GL_FALSE, sizeof(struct cube_instance), (const GLvoid*)(sizeof(struct mat4x4)));
-	glVertexAttribDivisor(color_index, 1);
-#endif
 	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -308,78 +377,23 @@ int main(int args, char *argv[])
 		struct mat4x4 translation[instance_cube_count];
 		for(int i = 0; i < cw; i++){
 			for(int j = 0; j < ch; j++){
-				int k = i*ch + j;
-				struct vec3 position = {i*3.0f, 0.0f, j*3.0f};
-				translation[k] = m4x4trs(position);
+				for(int h = 0; h < cd; h++){
+					int k = h + j * cd + i * cd * ch;
+					struct vec3 position = {i*11.0f, h*5.0f, j*13.0f};
+					translation[k] = m4x4trs(position);
+				}
 			}
 		}
 		vertex_instance_update(instance_cube.instance_buffer, translation, instance_cube_count*sizeof(struct mat4x4));
 	}
 
-
-	vertex_instance_initialize(&instance_ship, &vertex_buffer, &model[1]);
-
-	glBindVertexArray(instance_ship.vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, instance_ship.instance_buffer);
-
-	translation_index = glGetAttribLocation(program[1], "r_model");
-	translation_attribute_pointer(translation_index, sizeof(struct mat4x4), 0);
-	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	{
-		struct mat4x4 translation[instance_ship_count];
-		for(int i = 0; i < instance_ship_count ; i++){
-			struct vec3 position = {i*15.0f, 5.0f, 0.0f};
-			translation[i] = m4x4trs(position);
-		}
-		vertex_instance_update(instance_ship.instance_buffer, translation, instance_ship_count*sizeof(struct mat4x4));
-	}
-
 	struct frame_info_update_result frame_result = frame_info_update(&scene.frame_info);
 	int width = scene.frame_info.width;
 	int height = scene.frame_info.height;
+
+	framebuffer_initialize(&framebuffer, width, height);
 	
-
-	GLuint framebuffer;
-	glGenFramebuffers(1, &framebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-	GLuint normal_texture;
-	glGenTextures(1, &normal_texture);
-	glBindTexture(GL_TEXTURE_2D, normal_texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, normal_texture, 0);
-
-	GLuint depth_texture;
-#if 0
-	glGenTextures(1, &depth_texture);
-	glBindTexture(GL_TEXTURE_2D, depth_texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, depth_texture, 0);
-#else
-	glGenRenderbuffers(1, &depth_texture);
-	glBindRenderbuffer(GL_RENDERBUFFER, depth_texture);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_texture);
-#endif 
 	
-
-	GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, draw_buffers);
-
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
-		fprintf(stderr, "Error: glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE \n");
-	}
-
 	
 	const GLchar textured_quad_vertex_shader_source[] = 
 	{
@@ -402,43 +416,17 @@ int main(int args, char *argv[])
 		"	fcolor = texture(in_texture, f_uv);	\n"
 		"}						\n"
 	};
+
 	
-	const GLfloat quad_vertices[] = {
-		-1.0f, 1.0f, 
-		1.0f, 1.0f,
-		1.0, -1.0f,
-		-1.0f, -1.0f
-	};	
+	struct render_quad quad;
+	quad_initialize(&quad, textured_quad_vertex_shader_source, textured_quad_fragment_shader_source);
 
-	const GLuint quad_element[] = {
-		1, 0, 2,
-		2, 0, 3
-	};
 
-	GLuint textured_quad_program = create_program(textured_quad_vertex_shader_source, textured_quad_fragment_shader_source);
-	
-	GLuint quad_vertex_array, quad_vertex_buffer, quad_element_buffer;
-	
-	glGenVertexArrays(1, &quad_vertex_array);
-	glBindVertexArray(quad_vertex_array);
 
-	glGenBuffers(1, &quad_element_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof quad_element, quad_element, GL_STATIC_DRAW); 
-
-	glGenBuffers(1, &quad_vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof quad_vertices, quad_vertices, GL_STATIC_DRAW); 
-
-	const GLuint quad_vertex_index = 0;
-	glEnableVertexAttribArray(quad_vertex_index);
-	glVertexAttribPointer(quad_vertex_index, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-	glBindVertexArray(0);
-
-	glUseProgram(textured_quad_program);
-	GLuint texture_sampler = glGetUniformLocation(textured_quad_program, "in_texture");
+	glUseProgram(quad.program);
+	GLuint texture_sampler = glGetUniformLocation(quad.program, "in_texture");
 	glUniform1i(texture_sampler, 0);
+
 
 
 	glEnable(GL_DEPTH_TEST);
@@ -453,7 +441,7 @@ int main(int args, char *argv[])
 	
 		struct frame_info_update_result frame_result = frame_info_update(&scene.frame_info);
 		camera_view_projection(&scene.view_state, scene.frame_info.width, scene.frame_info.height);
-		struct mat4x4 view = camera_input_update(&scene.view_state, 200.0f, frame_result.mouse_delta, deltatime);
+		struct mat4x4 view = camera_input_update(&scene.update_state, &scene.view_state, 700.0f, frame_result.mouse_delta, deltatime);
 
 		int new_width = scene.frame_info.width;
 		int new_height = scene.frame_info.height;
@@ -463,12 +451,7 @@ int main(int args, char *argv[])
 
 		if(new_window_size)
 		{
-
-			glBindRenderbuffer(GL_RENDERBUFFER, depth_texture);
-			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-
-			glBindTexture(GL_TEXTURE_2D, normal_texture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+			framebuffer_resize(&framebuffer, width, height);
 
 		}
 
@@ -479,35 +462,36 @@ int main(int args, char *argv[])
 	
 
 		/* In render */	
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glViewport(0,0, width, height);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.framebuffer);
 
+		glViewport(0,0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 		glUseProgram(program[0]);
 		vertex_instance_draw(&instance_cube, instance_cube_count);
-
+#if 0
 		glUseProgram(program[1]);
 		vertex_instance_draw(&instance_ship, instance_ship_count);
-
-
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#if 1	
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, normal_texture);
-		glBindSampler(0, depth_texture);
-
-		glUseProgram(textured_quad_program);
-		glBindVertexArray(quad_vertex_array);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
-		glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);	
-		glBindVertexArray(0);
 #endif 
 
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+
+		glViewport(0,0, width/2, height/2);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, framebuffer.position_texture);
+		glBindSampler(0, framebuffer.position_texture);
+
+		quad_render(&quad);
+
+		glViewport(width/2, 0, width/2, height/2);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, framebuffer.normal_texture);
+		glBindSampler(0, framebuffer.normal_texture);
+
+		quad_render(&quad);
 
 		platform_update();
     	}
