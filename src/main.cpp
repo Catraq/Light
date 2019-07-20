@@ -22,42 +22,47 @@
 
 #include <joystick_ps3.h>
 
-
-struct frame_info_update_result
-{
-	struct vec2 mouse_delta;
-};
-
-
 struct frame_info
 {
+	struct vec2 delta;
 	struct vec2 mouse;
+
+	uint32_t resize;
 	uint32_t width;
 	uint32_t height;
 };
 
-static struct frame_info_update_result frame_info_update(struct frame_info *info)
+static struct frame_info frame_info_update(struct frame_info *prev)
 {
-	struct frame_info_update_result result = {};
+	struct frame_info result = {};
 	
 	struct vec2 mouse;
 	platform_mouse(&mouse);
-	platform_resolution(&info->width, &info->height);
+
+	uint32_t width, height;
+	platform_resolution(&width, &height);
+
+	result.mouse = mouse;
 	
-	const float half_width_f  = (float)info->width/2.0f;
-	const float half_height_f = (float)info->height/2.0f;
-	
-	struct vec2 tmp;
-	tmp.x = -(half_width_f/info->width -  mouse.x/info->width );
-	tmp.y =  (half_height_f/info->height - mouse.y/info->height );
-	
-	result.mouse_delta = v2sub(info->mouse, tmp); 
-	result.mouse_delta = v2scl(result.mouse_delta, 2.0f); 
-	info->mouse = tmp;
+	if(prev != NULL)
+		result.resize = (width != prev->width || height != prev->height);
+
+	result.width = width;
+	result.height = height;
 	
 	return result;
 }
 
+static struct vec2 frame_info_mouse_delta(struct frame_info *curr, struct frame_info *prev)
+{
+
+	struct vec2 np = {prev->mouse.x/prev->width, -prev->mouse.y/prev->height};
+	struct vec2 nc = {curr->mouse.x/curr->width, -curr->mouse.y/curr->height};
+	struct vec2 delta = v2sub(np, nc); 
+	
+	return delta;
+
+}
 
 
 const char vertex_shader_source[] = 
@@ -102,11 +107,10 @@ const char fragment_shader_source[] =
 
 		
 	
-GLuint create_program(const char *vertex_source, const char *fragment_source)
+GLint create_program(const char *vertex_source, const char *fragment_source)
 {
 	int result = 0;
 	
-	GLuint program = glCreateProgram();
 	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	
@@ -119,38 +123,45 @@ GLuint create_program(const char *vertex_source, const char *fragment_source)
 	
 	glCompileShader(vertex_shader);
 	glCompileShader(fragment_shader);
+
 	
-	
-	GLint v_compiled = GL_FALSE;
-	GLint f_compiled = GL_FALSE;
-	
-	glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &v_compiled);
-	glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &f_compiled);
-	
-	if( v_compiled == GL_FALSE 
-	||  f_compiled == GL_FALSE )
-	{
-		
+	GLint compiled = GL_FALSE;
+	glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compiled);
+	if(compiled == GL_FALSE){
 		GLchar log[255];
 		GLsizei length;
-		
 		glGetShaderInfoLog(vertex_shader, 255, &length, (GLchar*)&log);
 		if( length != 0 )
 		{
-			printf(" ---- Vertexshader log ---- \n %s \n", (GLchar*)&log);
+			printf(" ---- Vertexshader compile log ---- \n %s \n", (GLchar*)&log);
 		}
-		
-		length = 0;
+
+		result = -1;
+	}
+
+	glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
+	if(compiled == GL_FALSE){
+		GLchar log[255];
+		GLsizei length;
 		glGetShaderInfoLog(fragment_shader, 255, &length, (GLchar*)&log);
-		if( length != 0)
+		if( length != 0 )
 		{
-			printf(" ---- Fragmentshader log ---- \n %s \n", (GLchar*)&log);
+			printf(" ---- Fragmentshader compile log ---- \n %s \n", (GLchar*)&log);
 		}
-		
+
+		result = -1;
 	}
 	
 	
+	if(result < 0){
+		/* Cleanup and return */	
+		glDeleteShader(vertex_shader);
+		glDeleteShader(fragment_shader);
+		return -1;
+	}	
 	
+	GLuint program = glCreateProgram();
+
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
 	
@@ -168,10 +179,17 @@ GLuint create_program(const char *vertex_source, const char *fragment_source)
 		GLsizei length;
 		GLchar log[255];
 		glGetProgramInfoLog(program, 255, &length, (GLchar*)&log);
-		printf(" ---- Link log ---- \n %s \n", (GLchar*)&log);
+		printf(" ---- Program Link log ---- \n %s \n", (GLchar*)&log);
+
+		result = -1;
+	}
+
+	if(result < 0){
+		glDeleteProgram(program);
+		return -1;
 	}
 	
-
+	
 	return program;
 }
 
@@ -244,64 +262,69 @@ struct render_quad{
 };
 
 void quad_initialize(struct render_quad *quad, const char *vertex_shader_source, const char *fragment_shader_source)
-	{
-		
-		const GLfloat quad_vertices[] = {
-			-1.0f, 1.0f, 
-			1.0f, 1.0f,
-			1.0, -1.0f,
-			-1.0f, -1.0f
-		};	
-
-		const GLuint quad_element[] = {
-			1, 0, 2,
-			2, 0, 3
-		};
+{
 	
+	const GLfloat quad_vertices[] = {
+		-1.0f, 1.0f, 
+		1.0f, 1.0f,
+		1.0, -1.0f,
+		-1.0f, -1.0f
+	};	
 
-		GLuint quad_program = create_program(vertex_shader_source, fragment_shader_source);
-	
-		GLuint quad_vertex_array, quad_vertex_buffer, quad_element_buffer;
-		glGenVertexArrays(1, &quad_vertex_array);
-		glBindVertexArray(quad_vertex_array);
-
-		glGenBuffers(1, &quad_element_buffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof quad_element, quad_element, GL_STATIC_DRAW); 
+	const GLuint quad_element[] = {
+		1, 0, 2,
+		2, 0, 3
+	};
 
 
-		glGenBuffers(1, &quad_vertex_buffer);
-		glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof quad_vertices, quad_vertices, GL_STATIC_DRAW); 
+	GLuint quad_program = create_program(vertex_shader_source, fragment_shader_source);
 
-		const GLuint quad_vertex_index = 0;
-		glEnableVertexAttribArray(quad_vertex_index);
-		glVertexAttribPointer(quad_vertex_index, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	GLuint quad_vertex_array, quad_vertex_buffer, quad_element_buffer;
+	glGenVertexArrays(1, &quad_vertex_array);
+	glBindVertexArray(quad_vertex_array);
 
-		glBindVertexArray(0);
+	glGenBuffers(1, &quad_element_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof quad_element, quad_element, GL_STATIC_DRAW); 
 
-		quad->program 		= quad_program;
-		quad->vertex_array 	= quad_vertex_array;
-		quad->element_buffer 	= quad_element_buffer;
-		quad->vertex_buffer 	= quad_vertex_buffer;
 
-	}
+	glGenBuffers(1, &quad_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof quad_vertices, quad_vertices, GL_STATIC_DRAW); 
 
-	void quad_render(struct render_quad *quad)
-	{
-	
-		glUseProgram(quad->program);
-		glBindVertexArray(quad->vertex_array);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad->element_buffer);
-		glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);	
-		glBindVertexArray(0);
+	const GLuint quad_vertex_index = 0;
+	glEnableVertexAttribArray(quad_vertex_index);
+	glVertexAttribPointer(quad_vertex_index, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-	}
+	glBindVertexArray(0);
+
+	quad->program 		= quad_program;
+	quad->vertex_array 	= quad_vertex_array;
+	quad->element_buffer 	= quad_element_buffer;
+	quad->vertex_buffer 	= quad_vertex_buffer;
+
+}
+
+void quad_render(struct render_quad *quad)
+{
+
+	glUseProgram(quad->program);
+	glBindVertexArray(quad->vertex_array);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad->element_buffer);
+	glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);	
+	glBindVertexArray(0);
+
+}
 
 int main(int args, char *argv[])
 {
 	int result;
-	struct scene_instance scene;
+
+
+	struct frame_info 		frame_info;
+	struct camera_view_state 	camera_view;
+	struct camera_update_state 	camera_update;
+
 
 	const int model_count = 2;
 	const char *model_str[model_count] = {"data/cube.raw", "data/ship.raw"};	
@@ -318,10 +341,7 @@ int main(int args, char *argv[])
 
 	const int translation_offset = 0;
 		
-	const int instance_ship_count = 3;
-	struct vertex_instance instance_ship;
-
-
+	/* OpenGL Platform initialization */
 	result = platform_initialize();
 	if(result < 0)
 	{
@@ -329,8 +349,9 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	platform_update();
-
-	result = camera_input_initialize(&scene.update_state, "/dev/input/js0");
+	
+	/* Joystick initialization */
+	result = camera_input_initialize(&camera_update, "/dev/input/js0");
 	if(result < 0){
 		fprintf(stderr, "Error: could not initialize input.\n");
 		exit(EXIT_FAILURE);
@@ -338,26 +359,29 @@ int main(int args, char *argv[])
 
 
 
-
+	/* Load 3D models */
 	result = vertex_buffer_model_load(&vertex_buffer, model, model_str, model_count);
 	if(result < 0){
-		fprintf(stderr, "Error: could not load vertex buffer data. ");	
+		fprintf(stderr, "Error: could not load vertex buffer data. \n ");	
 		exit(EXIT_FAILURE);
 	}
 	
+	/* Get viewport size and so on */	
+	frame_info = frame_info_update(NULL);
+	int width = frame_info.width;
+	int height = frame_info.height;
+
 	const GLuint block_location = 0;
-	view_initialize(&scene.view_state,  block_location, scene.frame_info.width, scene.frame_info.height);
+	view_initialize(&camera_view, block_location, width, height);
 
-	GLuint program[2]; 
-	program[0] = create_program(vertex_shader_source, fragment_shader_source);
-	program[1] = create_program(vertex_shader_source, fragment_shader_source);
-
-
-	for(int i = 0; i < 2; i++)
-	{
-
-		camera_buffer_bind(&scene.view_state, program[i]);
+	/* Render program for vertex buffer */
+	GLint program = create_program(vertex_shader_source, fragment_shader_source);
+	if(program < 0){
+		fprintf(stderr, "Error: could not create shader. \n");	
+		exit(EXIT_FAILURE);
 	}
+	
+	camera_buffer_bind(&camera_view, program);
 
 
 
@@ -367,7 +391,7 @@ int main(int args, char *argv[])
 	glBindVertexArray(instance_cube.vertex_array);
 	glBindBuffer(GL_ARRAY_BUFFER, instance_cube.instance_buffer);
 
-	GLuint translation_index = glGetAttribLocation(program[0], "r_model");
+	GLuint translation_index = glGetAttribLocation(program, "r_model");
 	translation_attribute_pointer(translation_index, sizeof(struct mat4x4), 0);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -386,10 +410,6 @@ int main(int args, char *argv[])
 		}
 		vertex_instance_update(instance_cube.instance_buffer, translation, instance_cube_count*sizeof(struct mat4x4));
 	}
-
-	struct frame_info_update_result frame_result = frame_info_update(&scene.frame_info);
-	int width = scene.frame_info.width;
-	int height = scene.frame_info.height;
 
 	framebuffer_initialize(&framebuffer, width, height);
 	
@@ -439,20 +459,20 @@ int main(int args, char *argv[])
 		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
 		time = clock();
 	
-		struct frame_info_update_result frame_result = frame_info_update(&scene.frame_info);
-		camera_view_projection(&scene.view_state, scene.frame_info.width, scene.frame_info.height);
-		struct mat4x4 view = camera_input_update(&scene.update_state, &scene.view_state, 700.0f, frame_result.mouse_delta, deltatime);
+		struct frame_info frame_result = frame_info_update(&frame_info);
+		struct vec2 delta_mouse = frame_info_mouse_delta(&frame_result, &frame_info);
+		memcpy(&frame_info, &frame_result, sizeof frame_info);
+		width = frame_result.width;
+		height = frame_result.height;
 
-		int new_width = scene.frame_info.width;
-		int new_height = scene.frame_info.height;
-		int new_window_size = (new_width != width) | (new_height != height);
-		width = new_width;
-		height = new_height;
 
-		if(new_window_size)
+		camera_view_projection(&camera_view, width, height);
+		struct mat4x4 view = camera_input_update(&camera_update, &camera_view, 700.0f, delta_mouse, deltatime);
+
+
+		if(frame_info.resize == 1)
 		{
 			framebuffer_resize(&framebuffer, width, height);
-
 		}
 
 
@@ -469,12 +489,8 @@ int main(int args, char *argv[])
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-		glUseProgram(program[0]);
+		glUseProgram(program);
 		vertex_instance_draw(&instance_cube, instance_cube_count);
-#if 0
-		glUseProgram(program[1]);
-		vertex_instance_draw(&instance_ship, instance_ship_count);
-#endif 
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
