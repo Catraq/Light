@@ -5,6 +5,8 @@ struct render_framebuffer
 {
 	GLuint normal_texture;
 	GLuint position_texture;
+	GLuint color_texture;
+
 	GLuint depth_buffer;
 	GLuint framebuffer;
 };

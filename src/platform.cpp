@@ -1,5 +1,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
+#include <CL/cl.h>
 
 #include <stdio.h>
 
@@ -12,6 +15,7 @@ int platform_initialize(void)
 {
 	window = 0;
 	
+	/* Initialize openGL */	
 	if (!glfwInit())
 		return -1;
 
@@ -35,7 +39,8 @@ int platform_initialize(void)
 	/* Disable vertical sync */
 	glfwSwapInterval(0);
 
-   
+  	
+       	/* Enable Version 3.3 */
 	glewExperimental = true;
 	if (glewInit() != GLEW_OK)
 	{
@@ -44,6 +49,40 @@ int platform_initialize(void)
 		return -1;
 	}
 	
+	/* Init OpenCL */ 
+	cl_platform_id platform_id;
+	cl_device_id device_id;
+	cl_uint device_count;
+	cl_uint platform_count;
+
+	cl_int ret = clGetPlatformIDs(1, &platform_id, &platform_count);
+	if(ret != CL_SUCCESS){
+		printf("CL: Failure \n");
+	}
+	
+	ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &device_id, &device_count);
+	if(ret != CL_SUCCESS){
+		printf("CL: Failure \n");
+	}
+
+	const cl_context_properties context_properties[] = {
+		CL_GL_CONTEXT_KHR, (cl_context_properties)glfwGetWGLContext(window),
+		CL_EGL_DISPLAY_KHR, (cl_context_properties)glfwGetEGLDisplay(), 
+		CL_CONTEXT_PLATFORM, (cl_context_properties)platform_id, 
+		0
+	};
+
+	cl_context context = clCreateContext(context_properties, 1, &device_id, NULL, NULL, &ret);
+	if(ret != CL_SUCCESS){
+		printf("CL: Failure \n");
+	}
+
+	cl_command_queue command_queue = clCreateCommandQueue(cl_context, device_id, 0, &ret);
+	if(ret != CL_SUCCESS){
+		printf("CL: Failure \n");
+	}
+
+
 	/* Clear any errors */
 	while( glGetError() != GL_NONE)
 	{

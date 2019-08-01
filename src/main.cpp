@@ -97,7 +97,9 @@ const char fragment_shader_source[] =
 	"in vec3 v_position;				\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
 	"layout(location=1) out vec3 position_texture;	\n"
+	"layout(location=2) out vec3 color_texture;	\n"
 	"void main(){					\n"
+	"	color_texture = vec3(0,0,1); 		\n"
 	"	normal_texture = normalize(v_normal);	\n"
 	"	position_texture = v_position;		\n"
 	"}						\n"
@@ -371,6 +373,7 @@ int main(int args, char *argv[])
 	int width = frame_info.width;
 	int height = frame_info.height;
 
+	/* Initlaize camera. */
 	const GLuint block_location = 0;
 	view_initialize(&camera_view, block_location, width, height);
 
@@ -382,8 +385,6 @@ int main(int args, char *argv[])
 	}
 	
 	camera_buffer_bind(&camera_view, program);
-
-
 
 	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[1]);
 
@@ -495,19 +496,28 @@ int main(int args, char *argv[])
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
-		glViewport(0,0, width/2, height/2);
+
+
+
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.position_texture);
+		glViewport(0,0, width/2, height/2);
 		glBindSampler(0, framebuffer.position_texture);
-
 		quad_render(&quad);
 
-		glViewport(width/2, 0, width/2, height/2);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.normal_texture);
+		glViewport(width/2, 0, width/2, height/2);
 		glBindSampler(0, framebuffer.normal_texture);
-
 		quad_render(&quad);
+
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, framebuffer.color_texture);
+		glViewport(width/2, height/2, width/2, height/2);
+		glBindSampler(0, framebuffer.color_texture);
+		quad_render(&quad);
+
 
 		platform_update();
     	}
