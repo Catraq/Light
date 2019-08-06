@@ -300,10 +300,10 @@ void quad_initialize(struct render_quad *quad, const char *vertex_shader_source,
 
 	glBindVertexArray(0);
 
-	quad->program 		= quad_program;
-	quad->vertex_array 	= quad_vertex_array;
-	quad->element_buffer 	= quad_element_buffer;
-	quad->vertex_buffer 	= quad_vertex_buffer;
+	quad->program = quad_program;
+	quad->vertex_array = quad_vertex_array;
+	quad->element_buffer = quad_element_buffer;
+	quad->vertex_buffer = quad_vertex_buffer;
 
 }
 

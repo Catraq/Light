@@ -1,8 +1,12 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
+#define GLFW_EXPOSE_NATIVE_EGL
 #include <GLFW/glfw3native.h>
 
+#if 0
 #include <CL/cl.h>
+#endif 
 
 #include <stdio.h>
 
@@ -48,7 +52,8 @@ int platform_initialize(void)
 		glfwTerminate();
 		return -1;
 	}
-	
+
+#if 0	
 	/* Init OpenCL */ 
 	cl_platform_id platform_id;
 	cl_device_id device_id;
@@ -66,7 +71,7 @@ int platform_initialize(void)
 	}
 
 	const cl_context_properties context_properties[] = {
-		CL_GL_CONTEXT_KHR, (cl_context_properties)glfwGetWGLContext(window),
+		CL_GL_CONTEXT_KHR, (cl_context_properties)glfwGetEGLContext(window),
 		CL_EGL_DISPLAY_KHR, (cl_context_properties)glfwGetEGLDisplay(), 
 		CL_CONTEXT_PLATFORM, (cl_context_properties)platform_id, 
 		0
@@ -81,7 +86,7 @@ int platform_initialize(void)
 	if(ret != CL_SUCCESS){
 		printf("CL: Failure \n");
 	}
-
+#endif 
 
 	/* Clear any errors */
 	while( glGetError() != GL_NONE)
