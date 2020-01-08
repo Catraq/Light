@@ -2,7 +2,7 @@
 #define RAW_MODEL_H
 
 #include <stdio.h>
-#include "../math/vec.h"
+#include "math/vec.h"
 
 
 struct vertex

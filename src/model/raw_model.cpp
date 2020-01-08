@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "raw_model.h"
+#include "model/raw_model.h"
 
 struct vertex *raw_model_vertices(struct raw_model * model, uint32_t * count)
 {

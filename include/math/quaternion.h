@@ -1,7 +1,7 @@
 #ifndef QUATERNION_H_
 #define QUATERNION_H_
 
-#include "vec.h"
+#include "math/vec.h"
 
 struct quaternion
 {

@@ -2,8 +2,8 @@
 #define MAT4X4_H
 
 
-#include "vec.h"
-#include "quaternion.h"
+#include "math/vec.h"
+#include "math/quaternion.h"
 
 struct mat4x4
 {

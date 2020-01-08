@@ -11,6 +11,7 @@ include_directories(${OpenGL_INCLUDE_DIR})
 find_package(glfw3 3.3 REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/src/")
+include_directories("${PROJECT_SOURCE_DIR}/include/")
 include_directories("${PROJECT_SOURCE_DIR}/libs/joystick-ps3/")
 
 set(LIGHT_SOURCES 
