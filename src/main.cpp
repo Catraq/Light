@@ -33,12 +33,10 @@ const char vertex_shader_source[] =
 	" layout ( location = 3 ) in mat4 r_model; 		\n"
 	" out vec3 v_normal; 					\n"
 	" out vec3 v_position; 					\n"
-	" flat out int id; 						\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
 	" };							\n"
 	" void main(){						\n"
-	" 	id = gl_InstanceID;				\n"
 	" 	mat4 mn = transpose(inverse(r_model));		\n"
 	" 	vec4 n = normalize(vec4(r_normal, 0.0));	\n"
 	" 	vec4 m_n = normalize(mn * n);			\n"
@@ -56,15 +54,11 @@ const char fragment_shader_source[] =
 	"out vec4 fcolor; 				\n"
 	"in vec3  v_normal;				\n"
 	"in vec3 v_position;				\n"
-		"flat in int id;					\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
 	"layout(location=1) out vec3 position_texture;	\n"
 	"layout(location=2) out vec3 color_texture;	\n"
 	"void main(){					\n"
-	"	float R = float(int(float(id)*14.0)%8192);					\n"
-	"	float G = float(int(float(id)*84.0)%8192);					\n"
-	"	vec3 c = normalize(vec3(R, G, 0.0));		\n"
-	"	color_texture = c; 		\n"
+	"	color_texture = vec3(1.0, 0.0, 0.0); 		\n"
 	"	normal_texture = normalize(v_normal);	\n"
 	"	position_texture = v_position;		\n"
 	"}						\n"
@@ -192,10 +186,36 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 	
 	//Setup camera. 
 	camera_view_projection(view_state, width, height);
-	view_state->position = (vec3){0.0f, 0.0f, 5.0f};
+	view_state->position = (vec3){0.0f, 0.0f, 0.0f};
 	view_state->rotation = (vec3){0.0f, 0.0f, 0.0f};
 
 }
+
+
+struct physical_body
+{
+	struct mat4x4 translation;
+	struct mat4x4 intertia;
+	float mass;
+};
+
+
+void physical_body_init(struct physical_body *body)
+{
+	assert(body);
+
+	body->mass = 1.0f;
+	body->intertia = m4x4id();
+
+}
+
+void physical_body_accelerate(struct physical_body *body)
+{
+	assert(body);
+
+	
+}
+
 
 int main(int args, char *argv[])
 {
@@ -216,8 +236,7 @@ int main(int args, char *argv[])
 	struct render_framebuffer framebuffer;
 
 
-	const int cw = 10, ch = 10, cd = 10;
-	const int instance_cube_count = ch*cw*cd;
+	const int instance_cube_count = 1;
 	struct vertex_instance instance_cube;
 
 	const int translation_offset = 0;
@@ -307,17 +326,10 @@ int main(int args, char *argv[])
 
 
 	{
-		struct mat4x4 translation[instance_cube_count];
-		for(int i = 0; i < cw; i++){
-			for(int j = 0; j < ch; j++){
-				for(int h = 0; h < cd; h++){
-					int k = h + j * cd + i * cd * ch;
-					struct vec3 position = {i*11.0f, h*5.0f, j*13.0f};
-					translation[k] = m4x4trs(position);
-				}
-			}
-		}
-		vertex_instance_update(instance_cube.instance_buffer, translation, instance_cube_count*sizeof(struct mat4x4));
+		struct mat4x4 translation;
+		struct vec3 position = {.x = 0.0f, .y =  0.0f, .z = 20.0f};
+		translation = m4x4trs(position);
+		vertex_instance_update(instance_cube.instance_buffer, &translation, instance_cube_count*sizeof(struct mat4x4));
 	}
 
 
@@ -352,13 +364,14 @@ int main(int args, char *argv[])
 	
 		struct frame_info frame_result = frame_info_update(&frame_info);
 		struct vec2 delta_mouse = frame_info_mouse_delta(&frame_result, &frame_info);
+
 		memcpy(&frame_info, &frame_result, sizeof frame_info);
 		width = frame_result.width;
 		height = frame_result.height;
 
 
 		camera_view_projection(&camera_view, width, height);
-		struct mat4x4 view = camera_input_update(&camera_update, &camera_view, 700.0f, delta_mouse, deltatime);
+		struct mat4x4 view = camera_input_update(&camera_update, &camera_view, 70.0f, delta_mouse, deltatime);
 
 
 		if(frame_info.resize == 1)
