@@ -8,7 +8,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 include_directories(${OpenGL_INCLUDE_DIR})
 
-find_package(glfw3 3.3 REQUIRED)
+find_package(glfw3 3.0 REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/src/")
 include_directories("${PROJECT_SOURCE_DIR}/include/")

@@ -1,11 +1,10 @@
 #include <time.h>
 #include <stdint.h>
-
-#include "platform.h"
-
+#include <assert.h>
 
 #include "math/vec.h"
 #include "math/mat4x4.h"
+#include "platform.h"
 
 #include "camera.h"
 #include "camera_input.h"
@@ -19,51 +18,11 @@
 #include "vertex_buffer.h"
 #include "vertex_buffer_model.h"
 #include "vertex_instance.h"
+#include "vertex_instance_attribute.c"
+
+#include "light_frame.c"
 
 #include <joystick_ps3.h>
-
-struct frame_info
-{
-	struct vec2 delta;
-	struct vec2 mouse;
-
-	uint32_t resize;
-	uint32_t width;
-	uint32_t height;
-};
-
-static struct frame_info frame_info_update(struct frame_info *prev)
-{
-	struct frame_info result = {};
-	
-	struct vec2 mouse;
-	platform_mouse(&mouse);
-
-	uint32_t width, height;
-	platform_resolution(&width, &height);
-
-	result.mouse = mouse;
-	
-	if(prev != NULL)
-		result.resize = (width != prev->width || height != prev->height);
-
-	result.width = width;
-	result.height = height;
-	
-	return result;
-}
-
-static struct vec2 frame_info_mouse_delta(struct frame_info *curr, struct frame_info *prev)
-{
-
-	struct vec2 np = {prev->mouse.x/prev->width, -prev->mouse.y/prev->height};
-	struct vec2 nc = {curr->mouse.x/curr->width, -curr->mouse.y/curr->height};
-	struct vec2 delta = v2sub(np, nc); 
-	
-	return delta;
-
-}
-
 
 const char vertex_shader_source[] = 
 {
@@ -74,10 +33,12 @@ const char vertex_shader_source[] =
 	" layout ( location = 3 ) in mat4 r_model; 		\n"
 	" out vec3 v_normal; 					\n"
 	" out vec3 v_position; 					\n"
+	" flat out int id; 						\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
 	" };							\n"
 	" void main(){						\n"
+	" 	id = gl_InstanceID;				\n"
 	" 	mat4 mn = transpose(inverse(r_model));		\n"
 	" 	vec4 n = normalize(vec4(r_normal, 0.0));	\n"
 	" 	vec4 m_n = normalize(mn * n);			\n"
@@ -95,11 +56,15 @@ const char fragment_shader_source[] =
 	"out vec4 fcolor; 				\n"
 	"in vec3  v_normal;				\n"
 	"in vec3 v_position;				\n"
+		"flat in int id;					\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
 	"layout(location=1) out vec3 position_texture;	\n"
 	"layout(location=2) out vec3 color_texture;	\n"
 	"void main(){					\n"
-	"	color_texture = vec3(0,0,1); 		\n"
+	"	float R = float(int(float(id)*14.0)%8192);					\n"
+	"	float G = float(int(float(id)*84.0)%8192);					\n"
+	"	vec3 c = normalize(vec3(R, G, 0.0));		\n"
+	"	color_texture = c; 		\n"
 	"	normal_texture = normalize(v_normal);	\n"
 	"	position_texture = v_position;		\n"
 	"}						\n"
@@ -196,36 +161,12 @@ GLint create_program(const char *vertex_source, const char *fragment_source)
 }
 
 
-
-void translation_attribute_pointer(GLuint location, GLsizei stride, GLuint offset)
-{	
-
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(offset));
-	glVertexAttribDivisor(location, 1);
-	location++;
-	
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(sizeof(struct vec4) + offset));
-	glVertexAttribDivisor(location, 1);
-	location++;
-
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(2*sizeof(struct vec4) + offset));
-	glVertexAttribDivisor(location, 1);
-	location++;	
-	
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(3*sizeof(struct vec4) + offset));
-	glVertexAttribDivisor(location, 1);
-
-}
+#include "light_surface.c"
 
 struct scene_instance 
 {
 
 	struct frame_info frame_info;
-
 	struct camera_view_state view_state;
 	struct camera_update_state update_state;
 
@@ -253,68 +194,6 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 	camera_view_projection(view_state, width, height);
 	view_state->position = (vec3){0.0f, 0.0f, 5.0f};
 	view_state->rotation = (vec3){0.0f, 0.0f, 0.0f};
-
-}
-	
-struct render_quad{
-	GLuint program;
-	GLuint vertex_array;
-	GLuint vertex_buffer;
-	GLuint element_buffer;
-};
-
-void quad_initialize(struct render_quad *quad, const char *vertex_shader_source, const char *fragment_shader_source)
-{
-	
-	const GLfloat quad_vertices[] = {
-		-1.0f, 1.0f, 
-		1.0f, 1.0f,
-		1.0, -1.0f,
-		-1.0f, -1.0f
-	};	
-
-	const GLuint quad_element[] = {
-		1, 0, 2,
-		2, 0, 3
-	};
-
-
-	GLuint quad_program = create_program(vertex_shader_source, fragment_shader_source);
-
-	GLuint quad_vertex_array, quad_vertex_buffer, quad_element_buffer;
-	glGenVertexArrays(1, &quad_vertex_array);
-	glBindVertexArray(quad_vertex_array);
-
-	glGenBuffers(1, &quad_element_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_element_buffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof quad_element, quad_element, GL_STATIC_DRAW); 
-
-
-	glGenBuffers(1, &quad_vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof quad_vertices, quad_vertices, GL_STATIC_DRAW); 
-
-	const GLuint quad_vertex_index = 0;
-	glEnableVertexAttribArray(quad_vertex_index);
-	glVertexAttribPointer(quad_vertex_index, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-	glBindVertexArray(0);
-
-	quad->program = quad_program;
-	quad->vertex_array = quad_vertex_array;
-	quad->element_buffer = quad_element_buffer;
-	quad->vertex_buffer = quad_vertex_buffer;
-
-}
-
-void quad_render(struct render_quad *quad)
-{
-
-	glUseProgram(quad->program);
-	glBindVertexArray(quad->vertex_array);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad->element_buffer);
-	glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);	
-	glBindVertexArray(0);
 
 }
 
@@ -352,13 +231,12 @@ int main(int args, char *argv[])
 	}
 	platform_update();
 	
-	/* Joystick initialization */
+	/* Platform Joystick initialization */
 	result = camera_input_initialize(&camera_update, "/dev/input/js0");
 	if(result < 0){
 		fprintf(stderr, "Error: could not initialize input.\n");
 		exit(EXIT_FAILURE);
 	}
-
 
 
 	/* Load 3D models */
@@ -367,15 +245,8 @@ int main(int args, char *argv[])
 		fprintf(stderr, "Error: could not load vertex buffer data. \n ");	
 		exit(EXIT_FAILURE);
 	}
-	
-	/* Get viewport size and so on */	
-	frame_info = frame_info_update(NULL);
-	int width = frame_info.width;
-	int height = frame_info.height;
 
-	/* Initlaize camera. */
-	const GLuint block_location = 0;
-	view_initialize(&camera_view, block_location, width, height);
+
 
 	/* Render program for vertex buffer */
 	GLint program = create_program(vertex_shader_source, fragment_shader_source);
@@ -383,20 +254,57 @@ int main(int args, char *argv[])
 		fprintf(stderr, "Error: could not create shader. \n");	
 		exit(EXIT_FAILURE);
 	}
-	
-	camera_buffer_bind(&camera_view, program);
+
+
+
+
 
 	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[1]);
 
+	const GLuint vertex_buffer_mat4x4_offset = 0;
+	const char *model_transform_attribute = "r_model";
+	if(vertex_instance_attribute_mat4x4(&instance_cube, vertex_buffer_mat4x4_offset, program, model_transform_attribute, VERTEX_INSTANCE_ATTRIBUTE_MAT4X4) < 0)
+	{
+		fprintf(stderr, "Error: attribute missing in shader. \n");	
+		exit(EXIT_FAILURE);
+	}
 
-	glBindVertexArray(instance_cube.vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, instance_cube.instance_buffer);
 
-	GLuint translation_index = glGetAttribLocation(program, "r_model");
-	translation_attribute_pointer(translation_index, sizeof(struct mat4x4), 0);
+
 	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	
+	struct light_surface quad_surface;
+	struct light_surface_config  quad_config = {
+		.vertices = light_surface_quad_vertices,
+		.vertices_size = sizeof(light_surface_quad_vertices),
+
+		.indices = light_surface_quad_indices,
+		.indices_size = sizeof(light_surface_quad_indices),
+
+		.vertex_shader_source = textured_light_surface_vertex_shader_source,
+		.fragment_shader_source =textured_light_surface_fragment_shader_source
+	};
+	
+	const GLuint SAMPLER_INDEX = 0;
+	light_surface_initialize(&quad_surface, &quad_config);
+	light_surface_texture(&quad_surface, "in_texture", SAMPLER_INDEX);
+
+
+		
+	/* Get viewport size and so on */	
+	frame_info = frame_info_update(NULL);
+	int width = frame_info.width;
+	int height = frame_info.height;
+
+	/* Initialize framebuffer */
+	framebuffer_initialize(&framebuffer, width, height);
+
+
+	/* Initlaize camera. */
+	const GLuint block_location = 0;
+	view_initialize(&camera_view, block_location, width, height);
+	camera_buffer_bind(&camera_view, program);
+
 
 	{
 		struct mat4x4 translation[instance_cube_count];
@@ -412,51 +320,33 @@ int main(int args, char *argv[])
 		vertex_instance_update(instance_cube.instance_buffer, translation, instance_cube_count*sizeof(struct mat4x4));
 	}
 
-	framebuffer_initialize(&framebuffer, width, height);
-	
-	
-	
-	const GLchar textured_quad_vertex_shader_source[] = 
-	{
-		"#version 330 core 					\n"
-		" layout ( location = 0 ) in vec2 r_position; 		\n"
-		" out vec2 f_uv;					\n"
-		" void main(){						\n"
-		"	f_uv = (r_position + vec2(1))/2;		\n"
-		" 	gl_Position = vec4(r_position, 0.0, 1.0);       \n"
-		"} 							\n"
-	};
-
-
-	const GLchar textured_quad_fragment_shader_source[] = {
-		"#version 330 core 				\n"
-		"uniform sampler2D in_texture;			\n"
-		"out vec4 fcolor; 				\n"
-		"in vec2 f_uv;					\n"
-		"void main(){					\n"
-		"	fcolor = texture(in_texture, f_uv);	\n"
-		"}						\n"
-	};
-
-	
-	struct render_quad quad;
-	quad_initialize(&quad, textured_quad_vertex_shader_source, textured_quad_fragment_shader_source);
-
-
-
-	glUseProgram(quad.program);
-	GLuint texture_sampler = glGetUniformLocation(quad.program, "in_texture");
-	glUniform1i(texture_sampler, 0);
-
-
 
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
-	
-	
+
+
+	uint32_t 	fps_frame_count 	= 0;
+	float 		fps_sample_interval 	= 5.0f;	
+	clock_t 	fps_sample_last		= clock();
+
 	clock_t time = clock();
 	while(!platform_exit())
     	{
+		fps_frame_count++;
+		float fps_interval_time = (float)(clock() - fps_sample_last)/(float)CLOCKS_PER_SEC;
+		if(fps_interval_time > fps_sample_interval)
+		{
+			uint32_t frames_per_sec = (float)fps_frame_count/fps_interval_time;
+			fps_frame_count  = 0;
+			fps_sample_last = clock();
+			
+			printf("Average loop time(sec): %u \n", frames_per_sec);
+
+		}
+
+
+
+
 		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
 		time = clock();
 	
@@ -498,26 +388,26 @@ int main(int args, char *argv[])
 
 
 
-
+#if 0
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.position_texture);
 		glViewport(0,0, width/2, height/2);
 		glBindSampler(0, framebuffer.position_texture);
-		quad_render(&quad);
+		light_surface_render(&quad_surface);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.normal_texture);
 		glViewport(width/2, 0, width/2, height/2);
 		glBindSampler(0, framebuffer.normal_texture);
-		quad_render(&quad);
 
+		light_surface_render(&quad_surface);
+#endif 
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.color_texture);
-		glViewport(width/2, height/2, width/2, height/2);
+		glViewport(0, 0, width, height);
 		glBindSampler(0, framebuffer.color_texture);
-		quad_render(&quad);
-
+		light_surface_render(&quad_surface);
 
 		platform_update();
     	}
