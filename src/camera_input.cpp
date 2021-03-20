@@ -3,12 +3,77 @@
 
 #include "camera_input.h"
 
-int camera_input_initialize(struct camera_update_state *state, const char *device_path)
+#define CAMERA_INPUT_AXIS 4
+#define CAMERA_INPUT_BUTTON 2
+
+#define APPLICATION_INPUT_AXIS 4
+#define APPLICATION_INPUT_BUTTON 2
+
+int camera_input_initialize(struct camera_update_state *state)
 {
-	if(device_path != NULL){
-	int result = joystick_ps3_initialize(&state->ps3, device_path, 0);	
+
+
+	static struct joystick_input_requirement joystick_input_req = {
+		.joystick_axis_count = CAMERA_INPUT_AXIS,
+		.joystick_button_count = CAMERA_INPUT_BUTTON,
+	};
+
+
+	
+	const size_t input_attrib_list_count = 8; 
+	struct joystick_input_attrib input_attrib_list[input_attrib_list_count];
+	memset(&input_attrib_list, 0, sizeof input_attrib_list);
+
+	size_t number_of_joysticks = joystick_device_identify_by_requirement(&joystick_input_req, input_attrib_list, input_attrib_list_count);
+	if(number_of_joysticks == 0){
+		fprintf(stderr, "Could not find any joystick device \n");		
+		return 0;
+	}
+
+
+	const char *joystick_device_path = (const char *)input_attrib_list[0].joystick_device_path;
+	joystick_input_attrib_print(&input_attrib_list[0], stdout);
+
+	int result = joystick_device_open(&state->device, joystick_device_path);
 	if(result < 0)
-		return -1;
+	{
+		fprintf(stderr, "Could not open joystick device \n");		
+		return 0;	
+	}
+
+
+	/* Determined by the input joystick HW. */	
+	const uint32_t linear_inputs = joystick_device_axis_count(&state->device);
+
+	/* Determined by the application requirement. */
+	const uint32_t outputs = APPLICATION_INPUT_AXIS; 
+
+
+	result = joystick_map_create(&state->map, linear_inputs, outputs);
+	if(result < 0){
+		fprintf(stderr, "joystick_map_init(): error \n");
+		return 0;	
+	}
+	
+	uint32_t camera_index_to_input[CAMERA_INPUT_AXIS] = {0, 1, 2, 5};
+
+
+	//TODO: MAP by controller. 
+	for(uint32_t i = 0; i < CAMERA_INPUT_AXIS; i++)
+	{	
+		uint32_t output_channel_count = APPLICATION_INPUT_AXIS;
+		float output_channels[APPLICATION_INPUT_AXIS] = {0.0f, 0.0f, 0.0f, 0.0f};
+		output_channels[i] = 1.0f;
+
+
+		uint32_t input_index = camera_index_to_input[i];
+
+
+		result = joystick_map_mix(&state->map, input_index, output_channels, output_channel_count);
+		if(result < 0)
+		{
+			fprintf(stderr, "joystick_map_mix(): error \n");
+		}
 	}
 
 	return 0;
@@ -20,25 +85,25 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 	struct vec3 delta = {0.0f,0.0f,0.0f}; 
 	const float c = deltatime * speed;
 
-	/* If result = 1, then there is data */
-	struct joystick_ps3 input;
-	const uint32_t timeout_usec = 10;
-	memset(&input, 0, sizeof input);
-	int result = joystick_ps3_input(&state->ps3, &input, timeout_usec);
-	if(result > 0)
+	int result = joystick_device_poll(&state->device);
+	if(result < 0)
 	{
-		float lx = (float)input.axis[JOYSTICK_PS3_AXIS_LEFT_X]/(float)SHRT_MAX;
-		float ly = (float)input.axis[JOYSTICK_PS3_AXIS_LEFT_Y]/(float)SHRT_MAX;
-
-		float rx = (float)input.axis[JOYSTICK_PS3_AXIS_RIGHT_X]/(float)SHRT_MAX;
-		float ry = (float)input.axis[JOYSTICK_PS3_AXIS_RIGHT_Y]/(float)SHRT_MAX;
-
+		/* Disconnected */	
 	
-		struct vec3 ldelta = {ly, lx, 0.0f};
-		ldelta = v3scl(ldelta, 70.0f * deltatime);
-		camera_view->rotation = v3add(camera_view->rotation, ldelta); 
+	}
+	else if(result > 0)
+	{
+		float output[APPLICATION_INPUT_AXIS];
+		uint32_t output_count = APPLICATION_INPUT_AXIS;
+		joystick_map_translate(&state->map, &state->device, output, output_count);
+
+
+		struct vec3 camera_pos_delta = {output[3], output[2], 0};
+		struct vec3 camera_rot_delta = v3scl({output[1], output[0], 0.0f}, 10.0f * deltatime);
+		camera_view->rotation = v3add(camera_view->rotation, camera_rot_delta); 
 		
-		const float r_deadzone = 0.05;
+		float rx = camera_pos_delta.x;	
+		const float r_deadzone = 0.5;
 		if(rx < -r_deadzone || rx > r_deadzone){
 			struct vec3 direction = camera_view->rotation;
 			struct vec3 result = {0.0f, 0.0f, 0.0f};
@@ -49,8 +114,8 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 			result = v3norm(result);
 			result = v3scl(result,  -rx*c);
 			camera_view->position = v3add(camera_view->position, result);
-
 		}
+
 	}
 			
 	if(platform_key(GLFW_KEY_W) == PLATFORM_PRESS){

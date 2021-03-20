@@ -12,10 +12,11 @@ find_package(glfw3 3.0 REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/src/")
 include_directories("${PROJECT_SOURCE_DIR}/include/")
-include_directories("${PROJECT_SOURCE_DIR}/libs/joystick-ps3/")
+include_directories("${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/include/")
 
 set(LIGHT_SOURCES 
-	"${PROJECT_SOURCE_DIR}/libs/joystick-ps3/joystick_ps3.c"
+	"${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/src/joystick.c"
+	"${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/src/joystick_map.c"
 	"${PROJECT_SOURCE_DIR}/src/math/mat4x4.cpp"
 	"${PROJECT_SOURCE_DIR}/src/math/quaternion.cpp"
 	"${PROJECT_SOURCE_DIR}/src/camera.cpp"

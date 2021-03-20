@@ -22,7 +22,9 @@
 
 #include "light_frame.c"
 
+#if 0
 #include <joystick_ps3.h>
+#endif 
 
 const char vertex_shader_source[] = 
 {
@@ -251,7 +253,7 @@ int main(int args, char *argv[])
 	platform_update();
 	
 	/* Platform Joystick initialization */
-	result = camera_input_initialize(&camera_update, "/dev/input/js0");
+	result = camera_input_initialize(&camera_update);
 	if(result < 0){
 		fprintf(stderr, "Error: could not initialize input.\n");
 		exit(EXIT_FAILURE);
@@ -352,7 +354,7 @@ int main(int args, char *argv[])
 			fps_frame_count  = 0;
 			fps_sample_last = clock();
 			
-			printf("Average loop time(sec): %u \n", frames_per_sec);
+			printf("5s FPS average: %u \n", frames_per_sec);
 
 		}
 
