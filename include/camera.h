@@ -26,7 +26,6 @@ struct camera_view_state
 
 void camera_initialize(struct camera_view_state *view_state, GLuint buffer_base_index);
 void camera_buffer_bind(struct camera_view_state *view_state, GLuint program);
-void camera_view_projection(struct camera_view_state *view_state, int width, int height);
-struct mat4x4 camera_view_matrix(struct camera_view_state *camera_view);
+void camera_view_matrix(struct camera_view_state *camera_view, uint32_t width, uint32_t height);
 
 #endif

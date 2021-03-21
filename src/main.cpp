@@ -159,20 +159,9 @@ GLint create_program(const char *vertex_source, const char *fragment_source)
 
 #include "light_surface.c"
 
-struct scene_instance 
-{
-
-	struct frame_info frame_info;
-	struct camera_view_state view_state;
-	struct camera_update_state update_state;
-
-};
-
-
 
 void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_index, uint32_t width, uint32_t height)
 {
-
 
 	camera_initialize(view_state, buffer_base_index);
 
@@ -187,61 +176,117 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 	view_state->fov = fov;
 	
 	//Setup camera. 
-	camera_view_projection(view_state, width, height);
 	view_state->position = (vec3){0.0f, 0.0f, 0.0f};
 	view_state->rotation = (vec3){0.0f, 0.0f, 0.0f};
 
 }
 
 
-struct physical_body
+struct scene_object
 {
-	struct mat4x4 translation;
-	struct mat4x4 intertia;
-	float mass;
+	GLuint 			object_program;
+	uint32_t 		object_instance_count;
+	struct vertex_instance 	object_instance;
 };
 
-
-void physical_body_init(struct physical_body *body)
+struct scene_instance 
 {
-	assert(body);
 
-	body->mass = 1.0f;
-	body->intertia = m4x4id();
+	struct frame_info frame_info;
+	struct camera_view_state view_state;
+	struct camera_update_state update_state;
 
-}
+		
+	uint32_t object_count;
+	struct scene_object *object;
 
-void physical_body_accelerate(struct physical_body *body)
+};
+
+int scene_initialize(struct scene_instance *instance, struct scene_object *object, uint32_t object_count)
 {
-	assert(body);
+	int result = 0;
 
+	/* Platform Joystick initialization */
+	result = camera_input_initialize(&instance->update_state);
+	if(result < 0){
+		fprintf(stderr, "Error: could not initialize camera input.\n");
+		return -1;	
+	}
+
+
+	/* Initlaize camera. */
+	const GLuint uniform_buffer_block_location = 0;
+
+	struct frame_info frame_info = frame_info_update(NULL);
+	view_initialize(&instance->view_state, uniform_buffer_block_location, frame_info.width, frame_info.height);
+
+	instance->object = object;
+	instance->object_count = object_count;
 	
+	for(uint32_t i = 0; i < instance->object_count; i++)
+	{
+		camera_buffer_bind(&instance->view_state, instance->object[i].object_program);
+	}
+		
+
+	return 0;
 }
+
+int scene_render(struct scene_instance *instance, uint32_t width, uint32_t height, const float deltatime)
+{	
+	struct frame_info frame_result = frame_info_update(&instance->frame_info);
+	struct vec2 delta_mouse = frame_info_mouse_delta(&frame_result, &instance->frame_info);
+	instance->frame_info = frame_result; 
+
+	camera_input_update(&instance->update_state, &instance->view_state, 10.0f, delta_mouse, deltatime);
+
+
+
+
+	camera_view_matrix(&instance->view_state, width, height);
+
+	glViewport(0,0, width, height);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	
+
+	for(uint32_t i = 0; i < instance->object_count; i++)
+	{
+		if(instance->object[i].object_instance_count > 0)
+		{
+			glUseProgram(instance->object[i].object_program);
+			vertex_instance_draw(&instance->object[i].object_instance, instance->object[i].object_instance_count);
+		}
+
+	}
+
+	return 0;
+}
+
+
 
 
 int main(int args, char *argv[])
 {
 	int result;
 
+	
+	struct scene_instance scene;
+	memset(&scene, 0, sizeof scene);
 
-	struct frame_info 		frame_info;
-	struct camera_view_state 	camera_view;
-	struct camera_update_state 	camera_update;
-
-
+#if 1
 	const int model_count = 2;
 	const char *model_str[model_count] = {"data/cube.raw", "data/ship.raw"};	
+#endif 
+
+	const int scene_object_count = model_count;
+	struct scene_object scene_object[scene_object_count];
 
 	struct vertex_buffer vertex_buffer;
 	struct vertex_buffer_handler model[model_count];
 
-	struct render_framebuffer framebuffer;
 
-
-	const int instance_cube_count = 1;
-	struct vertex_instance instance_cube;
-
-	const int translation_offset = 0;
 		
 	/* OpenGL Platform initialization */
 	result = platform_initialize();
@@ -251,51 +296,20 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	platform_update();
-	
-	/* Platform Joystick initialization */
-	result = camera_input_initialize(&camera_update);
-	if(result < 0){
-		fprintf(stderr, "Error: could not initialize input.\n");
-		exit(EXIT_FAILURE);
-	}
 
 
-	/* Load 3D models */
+
+	/* Load 3D models to GPU memory.  */
 	result = vertex_buffer_model_load(&vertex_buffer, model, model_str, model_count);
 	if(result < 0){
 		fprintf(stderr, "Error: could not load vertex buffer data. \n ");	
 		exit(EXIT_FAILURE);
 	}
 
-
-
-	/* Render program for vertex buffer */
-	GLint program = create_program(vertex_shader_source, fragment_shader_source);
-	if(program < 0){
-		fprintf(stderr, "Error: could not create shader. \n");	
-		exit(EXIT_FAILURE);
-	}
-
-
-
-
-
-	vertex_instance_initialize(&instance_cube, &vertex_buffer, &model[1]);
-
-	const GLuint vertex_buffer_mat4x4_offset = 0;
-	const char *model_transform_attribute = "r_model";
-	if(vertex_instance_attribute_mat4x4(&instance_cube, vertex_buffer_mat4x4_offset, program, model_transform_attribute, VERTEX_INSTANCE_ATTRIBUTE_MAT4X4) < 0)
-	{
-		fprintf(stderr, "Error: attribute missing in shader. \n");	
-		exit(EXIT_FAILURE);
-	}
-
-
-
 	
-	
+	/*Create a quad as render surface */	
 	struct light_surface quad_surface;
-	struct light_surface_config  quad_config = {
+	struct light_surface_config quad_config = {
 		.vertices = light_surface_quad_vertices,
 		.vertices_size = sizeof(light_surface_quad_vertices),
 
@@ -310,28 +324,49 @@ int main(int args, char *argv[])
 	light_surface_initialize(&quad_surface, &quad_config);
 	light_surface_texture(&quad_surface, "in_texture", SAMPLER_INDEX);
 
-
-		
-	/* Get viewport size and so on */	
-	frame_info = frame_info_update(NULL);
-	int width = frame_info.width;
-	int height = frame_info.height;
+	
 
 	/* Initialize framebuffer */
-	framebuffer_initialize(&framebuffer, width, height);
+	uint32_t frame_width = 512, frame_height = 512;
+	struct render_framebuffer framebuffer;
+	framebuffer_initialize(&framebuffer, frame_width, frame_height);
 
 
-	/* Initlaize camera. */
-	const GLuint block_location = 0;
-	view_initialize(&camera_view, block_location, width, height);
-	camera_buffer_bind(&camera_view, program);
+	/* Render program for vertex buffer */
+	GLint program = create_program(vertex_shader_source, fragment_shader_source);
+	if(program < 0){
+		fprintf(stderr, "Error: could not create shader. \n");	
+		exit(EXIT_FAILURE);
+	}
 
+
+		
+	for(uint32_t i = 0; i < scene_object_count; i++)
+	{	
+		vertex_instance_initialize(&scene_object[i].object_instance, &vertex_buffer, &model[i]);
+
+		scene_object[i].object_instance_count = 0;
+		scene_object[i].object_program = program;
+	
+		const GLuint vertex_buffer_mat4x4_offset = 0;
+		const char *model_transform_attribute = "r_model";
+		if(vertex_instance_attribute_mat4x4(&scene_object[i].object_instance, vertex_buffer_mat4x4_offset, program, model_transform_attribute, VERTEX_INSTANCE_ATTRIBUTE_MAT4X4) < 0)
+		{
+			fprintf(stderr, "Error: attribute missing in shader. \n");	
+			exit(EXIT_FAILURE);
+		}
+
+	}
+
+
+	result = scene_initialize(&scene, scene_object, scene_object_count);
 
 	{
 		struct mat4x4 translation;
 		struct vec3 position = {.x = 0.0f, .y =  0.0f, .z = 20.0f};
 		translation = m4x4trs(position);
-		vertex_instance_update(instance_cube.instance_buffer, &translation, instance_cube_count*sizeof(struct mat4x4));
+		vertex_instance_update(scene_object[0].object_instance.instance_buffer, &translation, sizeof(translation));
+		scene_object[0].object_instance_count = 1;
 	}
 
 
@@ -342,8 +377,9 @@ int main(int args, char *argv[])
 	uint32_t 	fps_frame_count 	= 0;
 	float 		fps_sample_interval 	= 5.0f;	
 	clock_t 	fps_sample_last		= clock();
-
+	
 	clock_t time = clock();
+
 	while(!platform_exit())
     	{
 		fps_frame_count++;
@@ -359,28 +395,13 @@ int main(int args, char *argv[])
 		}
 
 
-
-
 		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
 		time = clock();
+
+
 	
-		struct frame_info frame_result = frame_info_update(&frame_info);
-		struct vec2 delta_mouse = frame_info_mouse_delta(&frame_result, &frame_info);
-
-		memcpy(&frame_info, &frame_result, sizeof frame_info);
-		width = frame_result.width;
-		height = frame_result.height;
-
-
-		camera_view_projection(&camera_view, width, height);
-		struct mat4x4 view = camera_input_update(&camera_update, &camera_view, 70.0f, delta_mouse, deltatime);
-
-
-		if(frame_info.resize == 1)
-		{
-			framebuffer_resize(&framebuffer, width, height);
-		}
-
+		uint32_t width, height;
+		platform_resolution(&width, &height);
 
 		glViewport(0, 0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -388,18 +409,12 @@ int main(int args, char *argv[])
 	
 
 		/* In render */	
+		framebuffer_resize(&framebuffer, frame_width, frame_height);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.framebuffer);
 
-		glViewport(0,0, width, height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-		glUseProgram(program);
-		vertex_instance_draw(&instance_cube, instance_cube_count);
+		scene_render(&scene, frame_width, frame_height, deltatime);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
 
 

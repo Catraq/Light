@@ -18,7 +18,7 @@ struct camera_update_state
 };
 
 int camera_input_initialize(struct camera_update_state *state);
-struct mat4x4 camera_input_update(struct camera_update_state *state, struct camera_view_state *camera_view, const float speed, const vec2 mouse_delta, const float deltatime);
+int camera_input_update(struct camera_update_state *state, struct camera_view_state *camera_view, const float speed, const vec2 mouse_delta, const float deltatime);
 
 
 #endif //CAMERA_INPUT_H

@@ -74,33 +74,6 @@ static struct frame_info_update_result frame_info_update(struct frame_info *info
 }
 
 
-#if 0
-vertex_buffer_handler load_model(  vertex_buffer *buffer, const char *filename )
-{
-	vertex_buffer_handler model_handler; 
-	FILE *fp = fopen( filename, "rb");
-	if( fp ){
-		
-		raw_model *raw_model_data = raw_model_load( fp );
-		
-		if( raw_model_data )
-		{
-			uint32_t vertex_count = 0;
-			vertex *vertices = raw_model_vertices( raw_model_data, &vertex_count);
-			
-			uint32_t indice_count = 0;
-			uint32_t *indices = raw_model_indices( raw_model_data, &indice_count );
-			
-			model_handler = vertex_buffer_push( buffer, vertices, vertex_count, indices, indice_count ); 					
-			raw_model_release( raw_model_data );
-		}
-		fclose( fp );
-	}
-	
-	return ( model_handler );
-}
-#endif 
-
 		
 	
 GLuint create_program(const char *vertex_source, const char *fragment_source)
@@ -195,7 +168,6 @@ void view_initialize(struct camera_view_state *view_state, GLuint buffer_base_in
 	view_state->fov = fov;
 	
 	//Setup camera. 
-	camera_view_projection(view_state, width, height);
 	view_state->position = (vec3){0.0f, 0.0f, 5.0f};
 	view_state->rotation = (vec3){0.0f, 0.0f, 0.0f};
 
@@ -345,14 +317,6 @@ int main( int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-#if 0
-	//Init vertex buffer for render engine
-	vertex_buffer_initialize(&buffer);
-	vertex_buffer_handler model = load_model( &buffer, filename);
-	vertex_buffer_commit( &buffer );
-#endif 
-
-
 	result = load_vertex_buffer(&vertex_buffer, &model, &filename, 1);
 	if(result < 0){
 		fprintf(stderr, "Error: could not load vertex buffer data. ");	
@@ -361,14 +325,7 @@ int main( int args, char *argv[])
 	
 	const GLuint block_location = 0;
 	view_initialize(&view_state,  block_location, 512, 512);
-#if 0	
-	//Init render handle for the object
-	render_instance model_render_handler;
-	{
-		renderer_instance_initialize(&r_renderer, &model_render_handler,&buffer, &model);
-	}
-#endif 
-	
+
 	GLuint program = create_program(vertex_shader_source, fragment_shader_source);
 	camera_buffer_bind(&view_state, program);
 
@@ -401,8 +358,7 @@ int main( int args, char *argv[])
 	while(!platform_exit())
 	{
 		struct frame_info_update_result frame_result = frame_info_update(&frame_info);
-		camera_view_projection(&view_state, frame_info.width, frame_info.height);
-		camera_view_matrix(&view_state);
+		camera_view_matrix(&view_state, frame_info.width, frame_info.height);
 		struct vec2 mouse_delta = frame_result.mouse_delta;
 
 	
@@ -428,25 +384,6 @@ int main( int args, char *argv[])
 		glUseProgram(program);
 		vertex_instance_draw(&instance, 1);
 		glBindVertexArray(0);
-#if 0
-	
-		
-		//TODO: This should be done in some other way...
-		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ){
-			//model_body[0].rotation = v3add(model_body[0].rotation, update_camera_rotation(frame_result.mouse_delta));
-		}
-		
-		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS ){
-			//model_body[0].position.z += frame_result.mouse_delta.y*20.0f;
-		}
-		 
-#if 0	
-		physic_instance_translate_body( &model_body[0] );
-		renderer_instance_dwrite_instances( &model_render_handler, model_body, 1 );
-#endif 
-
-#endif 
-
 		
 		platform_update();
 	}

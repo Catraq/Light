@@ -80,11 +80,12 @@ int camera_input_initialize(struct camera_update_state *state)
 }
 
 
-struct mat4x4 camera_input_update(struct camera_update_state *state, struct camera_view_state *camera_view, const float speed,  const vec2 mouse_delta, const float deltatime)
+int camera_input_update(struct camera_update_state *state, struct camera_view_state *camera_view, const float speed,  const vec2 mouse_delta, const float deltatime)
 {
 	struct vec3 delta = {0.0f,0.0f,0.0f}; 
-	const float c = deltatime * speed;
+	const float speed_dt = deltatime * speed;
 
+#if 0
 	int result = joystick_device_poll(&state->device);
 	if(result < 0)
 	{
@@ -99,7 +100,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 
 
 		struct vec3 camera_pos_delta = {output[3], output[2], 0};
-		struct vec3 camera_rot_delta = v3scl({output[1], output[0], 0.0f}, 10.0f * deltatime);
+		struct vec3 camera_rot_delta = v3scl({output[1], output[0], 0.0f}, speed_dt);
 		camera_view->rotation = v3add(camera_view->rotation, camera_rot_delta); 
 		
 		float rx = camera_pos_delta.x;	
@@ -112,11 +113,12 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 			result.y = -sinf(direction.x);
 
 			result = v3norm(result);
-			result = v3scl(result,  -rx*c);
+			result = v3scl(result,  -rx*speed_dt);
 			camera_view->position = v3add(camera_view->position, result);
 		}
 
 	}
+#endif 
 			
 	if(platform_key(GLFW_KEY_W) == PLATFORM_PRESS){
 
@@ -127,7 +129,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 		result.y = -sinf(direction.x);
 
 		result = v3norm(result);
-		result = v3scl(result,  c);
+		result = v3scl(result,  speed_dt);
 		camera_view->position = v3add(camera_view->position, result);
 	}
 	
@@ -140,7 +142,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 		result.y = sinf(direction.x);
 
 		result = v3norm(result);
-		result = v3scl(result,  c);
+		result = v3scl(result,  speed_dt);
 		camera_view->position = v3add(camera_view->position, result);
 
 	}
@@ -152,7 +154,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 		result.z = -sinf(direction.y);
 
 		result = v3norm(result);
-		result = v3scl(result,  c);
+		result = v3scl(result,  speed_dt);
 		camera_view->position = v3add(camera_view->position, result);
 	}
 	if(platform_key(GLFW_KEY_D) == PLATFORM_PRESS){
@@ -163,7 +165,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 		result.z = sinf(direction.y);
 
 		result = v3norm(result);
-		result = v3scl(result,  c);
+		result = v3scl(result,  speed_dt);
 		camera_view->position = v3add(camera_view->position, result);
 	}
 	
@@ -171,7 +173,7 @@ struct mat4x4 camera_input_update(struct camera_update_state *state, struct came
 		vec3 delta = {mouse_delta.y, mouse_delta.x, 0.0f};
 		camera_view->rotation = v3add(camera_view->rotation, delta);
 	}
-
-	return camera_view_matrix(camera_view);
+	
+	return 0;
 }
 
