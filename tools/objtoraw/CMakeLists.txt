@@ -1,8 +1,8 @@
 set(TOOL OBJTORAW)
 
 set(SOURCES 
-	"${PROJECT_SOURCE_DIR}/src/model/raw_model.cpp"
-	"src/objtoraw.cpp"
+	"${PROJECT_SOURCE_DIR}/src/model/raw_model.c"
+	"src/objtoraw.c"
 )
 add_executable(${TOOL} ${SOURCES}) 
 

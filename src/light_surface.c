@@ -22,7 +22,7 @@ const GLchar textured_light_surface_fragment_shader_source[] = {
 	"}						\n"
 };
 
-const vec2 light_surface_quad_vertices[] = {
+const struct vec2 light_surface_quad_vertices[] = {
 	{-1.0f, 1.0f}, 
 	{1.0f, 1.0f},
 	{1.0, -1.0f},
@@ -48,7 +48,7 @@ struct light_surface
 struct light_surface_config 
 {
 
-	const vec2 *vertices;
+	const struct vec2 *vertices;
 	GLuint 	vertices_size;	
 
 	const GLuint *indices;

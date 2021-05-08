@@ -21,7 +21,7 @@ uint32_t *raw_model_indices(struct raw_model * model, uint32_t *count)
 }
 
 
-struct raw_model * raw_model_create(const vertex *vertices, uint32_t vertex_count, const uint32_t *indices, uint32_t indice_count)
+struct raw_model * raw_model_create(const struct vertex *vertices, uint32_t vertex_count, const uint32_t *indices, uint32_t indice_count)
 {
 	
 	struct raw_model * result = (struct raw_model *)malloc( sizeof(struct raw_model) + sizeof(struct vertex) * vertex_count + sizeof( uint32_t ) * indice_count );
