@@ -12,12 +12,12 @@
 int camera_input_initialize(struct camera_update_state *state)
 {
 
-
-	static struct joystick_input_requirement joystick_input_req = {
-		.joystick_axis_count = CAMERA_INPUT_AXIS,
-		.joystick_button_count = CAMERA_INPUT_BUTTON,
+	struct joystick_input_requirement  joystick_input_req = {
+		.requirement_axis_count_min 	= CAMERA_INPUT_AXIS,
+		.requirement_button_count_min 	=  CAMERA_INPUT_BUTTON,
+		.requirement_axis_count_max 	= JOYSTICK_AXIS_MAX,
+		.requirement_button_count_max 	= JOYSTICK_AXIS_MAX,
 	};
-
 
 	
 	const size_t input_attrib_list_count = 8; 
@@ -34,7 +34,7 @@ int camera_input_initialize(struct camera_update_state *state)
 	const char *joystick_device_path = (const char *)input_attrib_list[0].joystick_device_path;
 	joystick_input_attrib_print(&input_attrib_list[0], stdout);
 
-	int result = joystick_device_open(&state->device, joystick_device_path);
+	int result = joystick_device_open(&state->device, &joystick_input_req, joystick_device_path);
 	if(result < 0)
 	{
 		fprintf(stderr, "Could not open joystick device \n");		
@@ -49,12 +49,7 @@ int camera_input_initialize(struct camera_update_state *state)
 	const uint32_t outputs = APPLICATION_INPUT_AXIS; 
 
 
-	result = joystick_map_create(&state->map, linear_inputs, outputs);
-	if(result < 0){
-		fprintf(stderr, "joystick_map_init(): error \n");
-		return 0;	
-	}
-	
+	joystick_map_create(&state->map, linear_inputs, outputs);
 	uint32_t camera_index_to_input[CAMERA_INPUT_AXIS] = {0, 1, 2, 5};
 
 
@@ -69,11 +64,7 @@ int camera_input_initialize(struct camera_update_state *state)
 		uint32_t input_index = camera_index_to_input[i];
 
 
-		result = joystick_map_mix(&state->map, input_index, output_channels, output_channel_count);
-		if(result < 0)
-		{
-			fprintf(stderr, "joystick_map_mix(): error \n");
-		}
+		joystick_map_transform(&state->map, input_index, output_channels, output_channel_count);
 	}
 
 	return 0;
@@ -100,7 +91,7 @@ int camera_input_update(struct camera_update_state *state, struct camera_view_st
 
 
 		struct vec3 camera_pos_delta = {output[3], output[2], 0};
-		struct vec3 camera_rot_delta = v3scl({output[1], output[0], 0.0f}, speed_dt);
+		struct vec3 camera_rot_delta = v3scl((struct vec3){output[1], output[0], 0.0f}, speed_dt);
 		camera_view->rotation = v3add(camera_view->rotation, camera_rot_delta); 
 		
 		float rx = camera_pos_delta.x;	
@@ -114,6 +105,7 @@ int camera_input_update(struct camera_update_state *state, struct camera_view_st
 
 			result = v3norm(result);
 			result = v3scl(result,  -rx*speed_dt);
+			
 			camera_view->position = v3add(camera_view->position, result);
 		}
 

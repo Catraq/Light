@@ -36,8 +36,6 @@ int platform_initialize(void)
 		return -1;
 	}
 
-
-
 	glfwMakeContextCurrent(window);
 	
 	/* Disable vertical sync */

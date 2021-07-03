@@ -27,6 +27,9 @@
 
 #include "scene.c"
 
+#include "physic_intersect.c"
+#include "physic_kd_tree.c"
+
 #if 0
 #include <joystick_ps3.h>
 #endif 
@@ -65,7 +68,9 @@ const char fragment_shader_source[] =
 	"layout(location=1) out vec3 position_texture;	\n"
 	"layout(location=2) out vec3 color_texture;	\n"
 	"void main(){					\n"
-	"	color_texture = vec3(1.0, 0.0, 0.0); 		\n"
+	"	vec3 light_dir = normalize(vec3(10.0f, 100.0f, 0.0f) - v_normal);		\n"
+	"	float diffuse = max(dot(v_normal, light_dir), 0.0);		\n"
+	"	color_texture = vec3(1.0, 1.0, 1.0) * (0.1 + diffuse); 			\n"
 	"	normal_texture = normalize(v_normal);	\n"
 	"	position_texture = v_position;		\n"
 	"}						\n"
@@ -77,22 +82,53 @@ const char fragment_shader_source[] =
 
 
 
+#define SPHERE_COUNT 10
+struct light_physic_kd_tree_node tree_node[SPHERE_COUNT];
+struct light_physic_shape_sphere shape_sphere[SPHERE_COUNT];
+struct light_physic_body body[SPHERE_COUNT];
+
 
 
 int main(int args, char *argv[])
 {
 	int result;
 
+
+	struct light_physic_shape_plane shape_plane[2] = {
+		{
+			.normal = (struct vec3){.x = 0.0f, .y = 1.0f, .z = 0.0f},
+		},
+	};
+
+	struct light_physic_body body_plane[2] = {
+		{
+			.position = (struct vec3){.x = 0.0f, .z = 0.0f, .y = 0.0f},
+			.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
+			.mass = 0.0f,
+		},
+	};
+
+	for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+	{
+		shape_sphere[i].radius = 1.0f;
+
+		body[i] = (struct light_physic_body){
+			.position = (struct vec3){.x = 0.0f, .z = 20.0f, .y = (float)(i+1) * 2.001f},
+			.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
+			.mass = 1.0f,
+		};
+	}
+
+
 	
 	struct scene_instance scene;
 	memset(&scene, 0, sizeof scene);
 
-#if 1
-	const int model_count = 2;
+	const int model_count = 3;
 	const char *model_str[model_count];
-       	model_str[0] = "data/cube.raw";
+       	model_str[0] = "data/sphere.raw";
        	model_str[1] = "data/ship.raw";	
-#endif 
+       	model_str[2] = "data/cube.raw";	
 
 	
 		
@@ -150,11 +186,10 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	
 
 	const int scene_object_count = model_count;
 	struct scene_object scene_object[scene_object_count];
-
-
 
 	/* 
 	 * Initialize shader vertex attribute location for instances of scene object 
@@ -185,14 +220,14 @@ int main(int args, char *argv[])
 	/* 
 	 * Set the positons for the instances of the objectes in the scene. 
 	 */
+	struct mat4x4 translation[SPHERE_COUNT];
+	for(uint32_t i = 0; i < SPHERE_COUNT; i++)
 	{
-		struct mat4x4 translation;
-		struct vec3 position = {.x = 0.0f, .y =  0.0f, .z = 20.0f};
-		translation = m4x4trs(position);
-		vertex_instance_update(scene_object[0].object_instance.instance_buffer, &translation, sizeof(translation));
-		scene_object[0].object_instance_count = 1;
+		translation[i] = m4x4trs(body[i].position);
 	}
 
+	scene_object[0].object_instance_count = SPHERE_COUNT;
+	vertex_instance_update(scene_object[0].object_instance.instance_buffer, translation, sizeof(translation));
 
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
@@ -203,9 +238,14 @@ int main(int args, char *argv[])
 	clock_t 	fps_sample_last		= clock();
 	
 	clock_t time = clock();
-
+	clock_t time_frame_delta = clock();	
 	while(!platform_exit())
     	{
+
+		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
+
+		time = clock();
+
 		fps_frame_count++;
 		float fps_interval_time = (float)(clock() - fps_sample_last)/(float)CLOCKS_PER_SEC;
 		if(fps_interval_time > fps_sample_interval)
@@ -218,9 +258,111 @@ int main(int args, char *argv[])
 
 		}
 
+		/* 
+		 * Set the positons for the instances of the objectes in the scene. 
+		 */
+		{
 
-		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
-		time = clock();
+#if 0
+			struct light_physic_kd_tree_node *root_node = light_physic_kd_tree_build(body, tree_node, SPHERE_COUNT);
+
+			uint8_t collision[SPHERE_COUNT][SPHERE_COUNT];
+			memset(collision, 0, sizeof(collision));
+
+
+			for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+			{
+				const uint32_t find_result_count = 10;
+				struct light_physic_kd_tree_node_find_result find_result[find_result_count];
+				for(uint32_t j = 0; j < find_result_count; j++){
+					/* Minimum distance. squared */
+					find_result[j].distance = 100.0f;
+					find_result[j].node = NULL;
+				}
+
+				uint32_t l = tree_node[i].node_body_index;
+
+				collision[l][l] = 1; 
+				light_physic_kd_tree_find_closest_N(root_node, &tree_node[i], 0, find_result, find_result_count);
+
+
+				for(uint32_t j = 0; j < find_result_count; j++)
+				{
+					if(find_result[j].node == NULL){
+						continue;
+					}
+
+					uint32_t k = find_result[j].node->node_body_index;
+
+					if(collision[l][k] > 0 || collision[k][l] > 0){
+						continue;	
+					}
+
+					struct light_physic_intersect intersect;
+					result = light_physic_intersect_sphere_sphere(&body[l], &shape_sphere[l], &body[k], &shape_sphere[k], &intersect);
+					if(result > 0)
+					{
+						if(v3dot(body[l].velocity, body[k].velocity) < 0.0f)
+						{
+							light_physic_intersect_resolve(&body[l], &body[k], &intersect);
+						}
+
+					}
+					collision[l][k] = 1;
+
+				}
+
+			}			
+#endif 
+
+
+#if 1
+			for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+			{
+				for(uint32_t j = i+1; j < SPHERE_COUNT; j++)
+				{
+					struct light_physic_intersect intersect;
+					result = light_physic_intersect_sphere_sphere(&body[i], &shape_sphere[i], &body[j], &shape_sphere[j], &intersect);
+					if(result > 0){
+						light_physic_intersect_resolve(&body[i], &body[j], &intersect);
+					}
+				}
+			}
+#endif 
+
+
+#if 1
+			for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+			{
+				light_physic_intersect_sphere_plane(&body[i], &shape_sphere[i], &body_plane[0], &shape_plane[0], deltatime);
+			}
+#endif 
+
+			for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+			{
+				struct vec3 force = (struct vec3){.x = 0.0f, .y = -9.82f*body[i].mass, .z = 0.0f};
+
+				struct vec3 velocity_delta = v3scl(force, deltatime/body[i].mass);
+				body[i].velocity = v3add(body[i].velocity, velocity_delta);
+
+
+				struct vec3 position_delta = v3scl(body[i].velocity, deltatime);
+				body[i].position = v3add(body[i].position, position_delta);
+
+			}
+
+
+			struct mat4x4 translation[SPHERE_COUNT];
+			for(uint32_t i = 0; i < SPHERE_COUNT; i++)
+			{
+				translation[i] = m4x4trs(body[i].position);
+			}
+			scene_object[0].object_instance_count = SPHERE_COUNT;
+			vertex_instance_update(scene_object[0].object_instance.instance_buffer, translation, sizeof(translation));
+		}
+
+
+
 
 
 	
@@ -229,17 +371,16 @@ int main(int args, char *argv[])
 
 		glViewport(0, 0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
 	
 
 		/* In render */	
-		framebuffer_resize(&framebuffer, frame_width, frame_height);
+		framebuffer_resize(&framebuffer, width, height);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.framebuffer);
 
-		scene_render(&scene, frame_width, frame_height, deltatime);
+		scene_render(&scene, width, height, deltatime);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
 
 #if 0
