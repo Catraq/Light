@@ -1,0 +1,3 @@
+[submodule "build/libs/Linux-Joystick-input"]
+	path = build/libs/Linux-Joystick-input
+	url = https://github.com/Catraq/Linux-Joystick-input

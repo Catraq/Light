@@ -36,8 +36,6 @@ add_executable(${PROJECT_NAME} ${LIGHT_SOURCES} src/main.c)
 set_property(TARGET light PROPERTY C_STANDARD 11)
 
 
-add_subdirectory(dev/template)
-
 #add_subdirectory(tools/objtoraw)
 #add_subdirectory(tools/rawviewer)
 
