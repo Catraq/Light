@@ -3,9 +3,8 @@
 		
 #include <GL/glew.h>
 
-GLint create_program(const char *vertex_source, const char *fragment_source)
+GLint light_create_program(const char *vertex_source, const char *fragment_source)
 {
-	int result = 0;
 	
 	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -32,7 +31,11 @@ GLint create_program(const char *vertex_source, const char *fragment_source)
 			printf(" ---- Vertexshader compile log ---- \n %s \n", (GLchar*)&log);
 		}
 
-		result = -1;
+		/* Cleanup and return */	
+		glDeleteShader(vertex_shader);
+		glDeleteShader(fragment_shader);
+
+		return -1;
 	}
 
 	glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
@@ -45,16 +48,13 @@ GLint create_program(const char *vertex_source, const char *fragment_source)
 			printf(" ---- Fragmentshader compile log ---- \n %s \n", (GLchar*)&log);
 		}
 
-		result = -1;
-	}
-	
-	
-	if(result < 0){
 		/* Cleanup and return */	
 		glDeleteShader(vertex_shader);
 		glDeleteShader(fragment_shader);
+
 		return -1;
-	}	
+	}
+	
 	
 	GLuint program = glCreateProgram();
 
@@ -77,14 +77,10 @@ GLint create_program(const char *vertex_source, const char *fragment_source)
 		glGetProgramInfoLog(program, 255, &length, (GLchar*)&log);
 		printf(" ---- Program Link log ---- \n %s \n", (GLchar*)&log);
 
-		result = -1;
-	}
-
-	if(result < 0){
 		glDeleteProgram(program);
 		return -1;
 	}
-	
+
 	
 	return program;
 }

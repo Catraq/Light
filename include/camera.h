@@ -1,5 +1,5 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#ifndef LIGHT_CAMERA_H
+#define LIGHT_CAMERA_H
 
 #include <string.h>
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include "math/mat4x4.h"
 
 
-struct camera_view_state
+struct light_camera_view_state
 {
 	float near;
 	float far;
@@ -24,8 +24,8 @@ struct camera_view_state
 	GLuint buffer_base_index;
 };
 
-void camera_initialize(struct camera_view_state *view_state, GLuint buffer_base_index);
-void camera_buffer_bind(struct camera_view_state *view_state, GLuint program);
-void camera_view_matrix(struct camera_view_state *camera_view, uint32_t width, uint32_t height);
+void light_camera_initialize(struct light_camera_view_state *view_state, GLuint buffer_base_index);
+int light_camera_buffer_bind(struct light_camera_view_state *view_state, GLuint program);
+void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32_t width, uint32_t height);
 
 #endif

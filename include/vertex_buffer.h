@@ -6,7 +6,7 @@
 
 #include "model/raw_model.h"
 
-struct vertex_buffer
+struct light_vertex_buffer
 {
 	GLuint vertexbuffer;
 	GLuint indicebuffer;
@@ -15,7 +15,7 @@ struct vertex_buffer
 	uint32_t indice_offset;
 };
 
-struct vertex_buffer_handler
+struct light_vertex_buffer_handler
 {
 	uint32_t vertex_offset;
 	uint32_t vertex_count;
@@ -24,7 +24,7 @@ struct vertex_buffer_handler
 	uint32_t indice_count;
 };
 
-struct vertex_handle
+struct light_vertex_handle
 {
 	struct vertex_buffer *buffer;
 	struct vertex_buffer_handler *handle;
@@ -32,10 +32,9 @@ struct vertex_handle
 };
 
 
-void vertex_buffer_initialize(struct vertex_buffer *buffer, uint32_t vertex_buffer_size, uint32_t indice_buffer_size);
-void vertex_buffer_deinitialize(struct vertex_buffer *buffer);
-void vertex_buffer_attribute_pointer(struct vertex_buffer *buffer, struct vertex_buffer_handler *handler);
-struct vertex_buffer_handler vertex_buffer_push(struct vertex_buffer *buffer, struct vertex *vertices, uint32_t vertex_count, uint32_t *indices, uint32_t indice_count);
-void vertex_buffer_handler_printf(struct vertex_buffer *buffer, struct vertex_buffer_handler *handler);
+void light_vertex_buffer_initialize(struct light_vertex_buffer *buffer, uint32_t vertex_buffer_size, uint32_t indice_buffer_size);
+void light_vertex_buffer_deinitialize(struct light_vertex_buffer *buffer);
+void light_vertex_buffer_attribute_pointer(struct light_vertex_buffer *buffer, struct light_vertex_buffer_handler *handler);
+struct light_vertex_buffer_handler light_vertex_buffer_push(struct light_vertex_buffer *buffer, struct vertex *vertices, uint32_t vertex_count, uint32_t *indices, uint32_t indice_count);
 
 #endif

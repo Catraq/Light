@@ -1,7 +1,7 @@
 #include "math/vec.h"
 #include "platform.h"
 
-struct frame_info
+struct light_frame_info
 {
 	struct vec2 delta;
 	struct vec2 mouse;
@@ -11,15 +11,15 @@ struct frame_info
 	uint32_t height;
 };
 
-struct frame_info frame_info_update(struct frame_info *prev)
+struct light_frame_info light_frame_info_update(struct light_frame_info *prev)
 {
-	struct frame_info result = {};
+	struct light_frame_info result = {};
 	
 	struct vec2 mouse;
-	platform_mouse(&mouse);
+	light_platform_mouse(&mouse);
 
 	uint32_t width, height;
-	platform_resolution(&width, &height);
+	light_platform_resolution(&width, &height);
 
 	result.mouse = mouse;
 	
@@ -32,7 +32,7 @@ struct frame_info frame_info_update(struct frame_info *prev)
 	return result;
 }
 
-struct vec2 frame_info_mouse_delta(struct frame_info *curr, struct frame_info *prev)
+struct vec2 light_frame_info_mouse_delta(struct light_frame_info *curr, struct light_frame_info *prev)
 {
 
 	struct vec2 np = {prev->mouse.x/prev->width, -prev->mouse.y/prev->height};

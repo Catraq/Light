@@ -32,7 +32,7 @@
  *	if all point masses are threated as one. 
  */
 
-struct physic_body
+struct light_physic_body
 {
 	float mass;
 	struct vec3 position;
@@ -40,17 +40,17 @@ struct physic_body
 };
 
 
-struct physic_intersection
+struct light_physic_intersection
 {
 	struct vec3 normal;
 };
 
-struct physic_shape_sphere
+struct light_physic_shape_sphere
 {
 	float radius;
 };
 
-int physic_intersect_sphere_sphere(struct physic_body *body_a, struct physic_shape_sphere *sphere_a, struct physic_body *body_b, struct physic_shape_sphere *sphere_b)
+int light_physic_intersect_sphere_sphere(struct physic_body *body_a, struct physic_shape_sphere *sphere_a, struct physic_body *body_b, struct physic_shape_sphere *sphere_b)
 {
 	
 	float d1_d2 = sphere_a->radius + sphere_b->radius;

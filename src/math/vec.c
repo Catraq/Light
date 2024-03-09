@@ -54,6 +54,15 @@ struct vec3 v3scl(struct vec3 lhs, float scale)
 	return ( result );
 }
 
+struct vec3 v3cross(struct vec3 lhs, struct vec3 rhs)
+{
+	struct vec3 result;
+	result.x = lhs.y*rhs.z - lhs.z*rhs.y;
+	result.y = lhs.z*rhs.x - lhs.x*rhs.z;
+	result.z = lhs.x*rhs.y - lhs.y*rhs.x;
+	return result;
+}
+
 
 
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void renderer_initialize(struct renderer *render)
+void light_renderer_initialize(struct light_renderer *render)
 {
 	const char vertex_shader_source[] = 
 	{
@@ -111,17 +111,17 @@ void renderer_initialize(struct renderer *render)
 	glUniformBlockBinding( render->program, block_index, block_location );
 }
 
-void renderer_deinitialize(struct renderer *render)
+void light_renderer_deinitialize(struct light_renderer *render)
 {
 	glDeleteProgram(render->program);
 	glDeleteBuffers(1, &render->scenebuffer);
 }
 
-void renderer_render_begin(struct renderer *render, struct mat4x4 *view, uint32_t width,  uint32_t height)
+void light_renderer_render_begin(struct light_renderer *render, struct mat4x4 *view, uint32_t width,  uint32_t height)
 {
 }
 
-void renderer_instance_renderer(struct renderer *render, struct render_instance *instance)
+void light_renderer_instance_renderer(struct light_renderer *render, struct render_instance *instance)
 {
 	
 	glBindVertexArray(instance->vertexarray);
@@ -133,17 +133,17 @@ void renderer_instance_renderer(struct renderer *render, struct render_instance 
 	);
 }
 
-void renderer_instance_dwrite_instances(struct render_instance *instance, struct physic_body *bodies, uint32_t count)
+void light_renderer_instance_dwrite_instances(struct light_render_instance *instance, struct light_physic_body *bodies, uint32_t count)
 {
 
 	instance->instance_count = count;
 
 	glBindBuffer( GL_ARRAY_BUFFER, instance->instancebuffer );
-	glBufferData( GL_ARRAY_BUFFER, count * sizeof( physic_body ), bodies, GL_STREAM_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, count * sizeof( light_physic_body ), bodies, GL_STREAM_DRAW );
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 }
 	
-void renderer_instance_initialize(struct renderer *render, struct vertex_handle *handle, struct render_instance *instance)
+void light_renderer_instance_initialize(struct light_renderer *render, struct vertex_handle *handle, struct light_render_instance *instance)
 {
 
 	struct vertex_buffer *buffer = handle->buffer;
@@ -165,19 +165,19 @@ void renderer_instance_initialize(struct renderer *render, struct vertex_handle 
 	
 	
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof( physic_body ), 0 );
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof( light_physic_body ), 0 );
 	glVertexAttribDivisor(2, 1);
 	
 	glEnableVertexAttribArray( 3 );
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof( physic_body ), ( const GLvoid*)( sizeof( vec4 ) ));
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof( light_physic_body ), ( const GLvoid*)( sizeof( vec4 ) ));
 	glVertexAttribDivisor(3, 1);
 	
 	glEnableVertexAttribArray( 4 );
-	glVertexAttribPointer( 4, 4, GL_FLOAT, GL_FALSE, sizeof( physic_body ), ( const GLvoid*)( 2*sizeof( vec4 ) ));
+	glVertexAttribPointer( 4, 4, GL_FLOAT, GL_FALSE, sizeof( light_physic_body ), ( const GLvoid*)( 2*sizeof( vec4 ) ));
 	glVertexAttribDivisor( 4, 1);
 	
 	glEnableVertexAttribArray( 5 );
-	glVertexAttribPointer( 5, 4, GL_FLOAT, GL_FALSE, sizeof( physic_body ), ( const GLvoid*)( 3*sizeof( vec4 ) ));
+	glVertexAttribPointer( 5, 4, GL_FLOAT, GL_FALSE, sizeof( light_physic_body ), ( const GLvoid*)( 3*sizeof( vec4 ) ));
 	glVertexAttribDivisor( 5, 1);
 	
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );

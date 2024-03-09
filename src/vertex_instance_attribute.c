@@ -5,7 +5,7 @@
 
 
 
-void translation_attribute_pointer(GLuint location, GLsizei stride, GLuint offset)
+void light_translation_attribute_pointer(GLuint location, GLsizei stride, GLuint offset)
 {	
 
 	glEnableVertexAttribArray(location);
@@ -35,7 +35,7 @@ typedef enum
 	VERTEX_INSTANCE_ATTRIBUTE_MAT4X4,
 }vertex_instance_attribute_type_t;
 
-int vertex_instance_attribute_mat4x4(struct vertex_instance *instance, GLuint instance_buffer_offset, GLuint program, const char *attribute_name, vertex_instance_attribute_type_t attribute_type)
+int light_vertex_instance_attribute(struct light_vertex_instance *instance, GLuint instance_buffer_offset, GLuint program, const char *attribute_name, vertex_instance_attribute_type_t attribute_type)
 {
 	assert(instance);
 	assert(attribute_name);
@@ -53,7 +53,7 @@ int vertex_instance_attribute_mat4x4(struct vertex_instance *instance, GLuint in
 	switch(attribute_type)
 	{
 		case VERTEX_INSTANCE_ATTRIBUTE_MAT4X4:
-			translation_attribute_pointer(translation_index, sizeof(struct mat4x4), instance_buffer_offset);
+			light_translation_attribute_pointer(translation_index, sizeof(struct mat4x4), instance_buffer_offset);
 			break;
 		default:
 			assert(0);	
@@ -61,5 +61,7 @@ int vertex_instance_attribute_mat4x4(struct vertex_instance *instance, GLuint in
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+
+	return 0;
 }
 

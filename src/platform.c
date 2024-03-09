@@ -15,7 +15,7 @@
 
 static GLFWwindow* window;
 
-int platform_initialize(void)
+int light_platform_initialize(void)
 {
 	window = 0;
 	
@@ -64,19 +64,19 @@ int platform_initialize(void)
 	return 0;
 }
 
-int platform_exit(void)
+int light_platform_exit(void)
 {
 	return glfwWindowShouldClose(window);
 }
 
-void platform_deinitialize(void)
+void light_platform_deinitialize(void)
 {
 	
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
-void platform_resolution(uint32_t *width,  uint32_t *height)
+void light_platform_resolution(uint32_t *width,  uint32_t *height)
 {
 	int x,y;
 	glfwGetFramebufferSize(window, &x, &y);
@@ -85,7 +85,7 @@ void platform_resolution(uint32_t *width,  uint32_t *height)
 }
 
 
-void platform_mouse(struct vec2 *coord)
+void light_platform_mouse(struct vec2 *coord)
 {
 	double x,y;
 	glfwGetCursorPos(window, &x, &y);
@@ -93,17 +93,17 @@ void platform_mouse(struct vec2 *coord)
 	coord->y = (float)y;
 }
 
-int32_t platform_mouse_key(uint8_t key)
+int32_t light_platform_mouse_key(uint8_t key)
 {
 	return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 }
 
-int32_t platform_key(uint8_t key)
+int32_t light_platform_key(uint8_t key)
 {
 	return (int32_t)glfwGetKey( window, ( int )key );
 }
 
-void platform_update(void)
+void light_platform_update(void)
 {
 	glfwSwapBuffers(window);
 	glfwPollEvents();

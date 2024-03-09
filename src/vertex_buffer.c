@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void vertex_buffer_initialize(struct vertex_buffer *buffer, uint32_t vertex_buffer_size, uint32_t indice_buffer_size)
+void light_vertex_buffer_initialize(struct light_vertex_buffer *buffer, uint32_t vertex_buffer_size, uint32_t indice_buffer_size)
 {
 	buffer->vertex_offset = 0;
 	buffer->indice_offset = 0;
@@ -19,22 +19,20 @@ void vertex_buffer_initialize(struct vertex_buffer *buffer, uint32_t vertex_buff
 
 }
 
-void vertex_buffer_deinitialize(struct vertex_buffer *buffer)
+void light_vertex_buffer_deinitialize(struct light_vertex_buffer *buffer)
 {
-
 	glDeleteBuffers(1, &buffer->vertexbuffer);
 	glDeleteBuffers(1, &buffer->indicebuffer);
-	
 }
 
 
 
 
 
-struct vertex_buffer_handler vertex_buffer_push(struct vertex_buffer *buffer, struct vertex *vertices, uint32_t vertex_count, uint32_t *indices, uint32_t indice_count)
+struct light_vertex_buffer_handler light_vertex_buffer_push(struct light_vertex_buffer *buffer, struct vertex *vertices, uint32_t vertex_count, uint32_t *indices, uint32_t indice_count)
 {
 	//Set up vertex buffer handler.  
-	struct vertex_buffer_handler handler; 
+	struct light_vertex_buffer_handler handler; 
 	handler.indice_offset = buffer->indice_offset;
 	handler.indice_count = indice_count;
 
@@ -64,7 +62,7 @@ struct vertex_buffer_handler vertex_buffer_push(struct vertex_buffer *buffer, st
 	return handler;
 }
 
-void vertex_buffer_attribute_pointer(struct vertex_buffer *buffer, struct vertex_buffer_handler *handler)
+void light_vertex_buffer_attribute_pointer(struct light_vertex_buffer *buffer, struct light_vertex_buffer_handler *handler)
 {
 	const GLvoid *global_vertex_offset = (const GLvoid *)(handler->vertex_offset + 0);
 	const GLvoid *global_normal_offset = (const GLvoid *)(handler->vertex_offset + sizeof(struct vec3));
@@ -78,11 +76,5 @@ void vertex_buffer_attribute_pointer(struct vertex_buffer *buffer, struct vertex
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), global_normal_offset);
 
-}
-
-void vertex_buffer_handler_printf(struct vertex_buffer *buffer, struct vertex_buffer_handler *handler)
-{
-	
-	
 }
 

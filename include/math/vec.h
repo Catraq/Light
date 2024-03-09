@@ -10,7 +10,9 @@ struct vec2
 
 struct vec3
 {
-	float x,y,z;
+	float x;
+	float y;
+	float z;
 };
 
 
@@ -27,6 +29,7 @@ struct vec2 v2scl(struct vec2 lhs, float scale);
 struct 	vec3 v3sub(struct vec3 lhs, struct vec3 rhs);
 float 	v3dot(struct vec3 lhs, struct vec3 rhs);
 struct 	vec3 v3add(struct vec3 lhs, struct vec3 rhs);
+struct 	vec3 v3cross(struct vec3 lhs, struct vec3 rhs);
 struct 	vec3 v3scl(struct vec3 lhs, float scale);
 float 	v3len(struct vec3 lhs);
 

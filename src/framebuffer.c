@@ -3,9 +3,9 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "render_framebuffer.h"
+#include "framebuffer.h"
 
-void framebuffer_initialize(struct render_framebuffer *framebuffer, int width, int height)
+void light_framebuffer_initialize(struct light_framebuffer *framebuffer, int width, int height)
 {
 	GLuint frame, color_texture, normal_texture, position_texture, depth_buffer;
 	glGenFramebuffers(1, &frame);
@@ -60,7 +60,7 @@ void framebuffer_initialize(struct render_framebuffer *framebuffer, int width, i
 	framebuffer->framebuffer 	= frame;
 }
 
-void framebuffer_resize(struct render_framebuffer *framebuffer, int width, int height)
+void light_framebuffer_resize(struct light_framebuffer *framebuffer, int width, int height)
 {
 	glBindRenderbuffer(GL_RENDERBUFFER, framebuffer->depth_buffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);

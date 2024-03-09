@@ -11,13 +11,17 @@ include_directories(${OpenGL_INCLUDE_DIR})
 
 find_package(glfw3 3.0 REQUIRED)
 
+find_package( BLAS REQUIRED )
+include_directories(${BLAS_INCLUDE_DIR})
+
+find_package( LAPACK REQUIRED )
+include_directories(${LAPACK_INCLUDE_DIR})
+
+
 include_directories("${PROJECT_SOURCE_DIR}/src/")
 include_directories("${PROJECT_SOURCE_DIR}/include/")
-include_directories("${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/include/")
 
 set(LIGHT_SOURCES 
-	"${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/src/joystick.c"
-	"${PROJECT_SOURCE_DIR}/libs/Linux-Joystick-input/src/joystick_map.c"
 	"${PROJECT_SOURCE_DIR}/src/math/mat4x4.c"
 	"${PROJECT_SOURCE_DIR}/src/math/vec.c"
 	"${PROJECT_SOURCE_DIR}/src/math/quaternion.c"
@@ -26,7 +30,7 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/vertex_buffer.c"
 	"${PROJECT_SOURCE_DIR}/src/vertex_instance.c"
 	"${PROJECT_SOURCE_DIR}/src/vertex_buffer_model.c"
-	"${PROJECT_SOURCE_DIR}/src/render_framebuffer.c"
+	"${PROJECT_SOURCE_DIR}/src/framebuffer.c"
 	"${PROJECT_SOURCE_DIR}/src/model/raw_model.c"
 	"${PROJECT_SOURCE_DIR}/src/platform.c"
 
@@ -37,7 +41,11 @@ set(LIGHT_SOURCES
 
 
 
-add_subdirectory(dev/)
+#add_subdirectory(dev/kd_tree)
+#add_subdirectory(dev/test)
+add_subdirectory(dev/particlesystem)
+add_subdirectory(dev/mesh)
+#add_subdirectory(dev/physic)
 
 #add_subdirectory(tools/objtoraw)
 #add_subdirectory(tools/rawviewer)
