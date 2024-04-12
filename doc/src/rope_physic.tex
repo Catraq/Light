@@ -1,0 +1,126 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+
+\title{Rope Physics}
+\author{Imre André Straumsnes Lundberg}
+\date{April 2024}
+
+\begin{document}
+
+\maketitle
+
+\section*{}
+Part of the documentation for project light on github.  \href{https://github.com/Catraq/Light}{https://github.com/Catraq/Light}. A prerequisite is to read "Contraint based physic solver" by Marijn Tamis, Giuseppe Maggiore. 
+
+\newpage
+
+\section*{Description}
+
+Fast computation of rope physic. A mass spring method could have been used but this is better in my opinion. However as the method uses the derivative only will it fall apart after some time, have to be addressed before it can be considered finished. 
+
+\section*{Math}
+
+
+Let J be the matrix with the constraints and M be the matrix with the masses. Let $q$ be the positions. There are in total m constraints and $n$ positions, but $m+1 = n$, use your imagination - it is a rope.  Keep in mind that $q_i$ is a vector. 
+With $f_{ext} = 0$ is (6.2.8) equal to 
+
+$$ JM^{-1}J^T\vec{\lambda} = - J\vec{\dot{q}} $$
+
+\noindent
+With the constraint $C_i(q_i, q_j) = \frac{q_{i} - q_{j}}{||q_{j} - q_{i}||}$. 
+
+\noindent
+Then $J$ is following
+
+$
+J =
+\begin{bmatrix}
+\frac{\partial{C_1}}{\partial{q_1}} & \frac{\partial{C_1}}{\partial{q_2}} &  ... & \frac{\partial{C_1}}{\partial{q_n}} \\
+... & ... & & ... \\
+\frac{\partial{C_m}}{\partial{q_1}} & \frac{\partial{C_m}}{\partial{q_2}} &  ... & \frac{\partial{C_m}}{\partial{q_n}} \\
+
+\end{bmatrix}$
+=
+$\begin{bmatrix}
+\frac{q_1}{||q_1 - q_2||} & -\frac{q_2}{||q_1 - q_2||} & ... & ... & ... \\
+0 & \frac{q_2}{||q_2 - q_3||} & -\frac{q_3}{||q_2 - q_3||} & ... & ... \\
+... & ... & ... & ... & ...\\
+                                    
+... & ... & ... & \frac{q_{n-1}}{||q_{n-1} - q_{n}||} & -\frac{q_n}{||q_{n-1} - q_n||} \\
+
+
+\end{bmatrix}$
+
+\hfill
+
+\noindent
+
+Then 
+
+\hfill
+
+$J\vec{\dot{q}}
+ = 
+\begin{bmatrix}
+	\vec{\dot{q_1}}\cdot\frac{q_1}{||q_1 - q_2||}  -\vec{\dot{q_2}}\cdot\frac{q_2}{||q_1 - q_2||}  \\
+	... & \\
+	\dot{\vec{q}}_{n-1}\cdot\frac{q_{n-1}}{||q_{n-1} - q_{n}||}  -\dot{\vec{q}}_m\cdot\frac{q_n}{||q_{n-1} - q_n||} \\
+\end{bmatrix}	 
+$
+
+\hfill
+
+and
+
+\hfill
+
+$JMJ^T$ = 
+$
+\begin{bmatrix}
+	m_1 \frac{\partial{C_1}}{\partial{q_1}} & m_2 \frac{\partial{C_2}}{\partial{q_2}} & ... & ... \\
+	0 & m_2 \frac{\partial{C_2}}{\partial{q_1}} & m_3 \frac{\partial{C_3}}{\partial{q_3}}& ...\\
+	... & ... & ... & ...\\
+\end{bmatrix}
+J^T
+$ 
+
+= 
+
+$
+\begin{bmatrix}
+	m_1 \frac{\partial{C_1}}{\partial{q_1}}\cdot  \frac{\partial{C_1}}{\partial{q_1}} + m_2 \frac{\partial{C_1}}{\partial{q_2}}\cdot  \frac{\partial{C_2}}{\partial{q_2}}		
+&
+m_1 \frac{\partial{C_1}}{\partial{q_1}}\cdot  \frac{\partial{C_2}}{\partial{q_1}} + m_2 \frac{\partial{C_2}}{\partial{q_2}}\cdot  \frac{\partial{C_2}}{\partial{q_2}}		
+&
+...
+& 
+...
+
+\\
+
+m_2 \frac{\partial{C_2}}{\partial{q_2}}\cdot  \frac{\partial{C_1}}{\partial{q_1}} 
+&
+m_2 \frac{\partial{C_2}}{\partial{q_2}}\cdot  \frac{\partial{C_2}}{\partial{q_1}} + m_3 \frac{\partial{C_3}}{\partial{q_3}}\cdot  \frac{\partial{C_2}}{\partial{q_1}}	
+&
+m_2 \frac{\partial{C_2}}{\partial{q_2}}\cdot  \frac{\partial{C_3}}{\partial{q_2}} + m_3 \frac{\partial{C_3}}{\partial{q_3}}\cdot  \frac{\partial{C_3}}{\partial{q_3}}	
+&
+...\\
+...
+&
+...
+&
+...
+&		
+...
+\\
+ 
+
+\end{bmatrix}
+$
+
+
+
+\end{document}
