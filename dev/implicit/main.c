@@ -47,23 +47,21 @@ const char light_game_implicit_sphere_shader_source[] =
 	/* Size of screen */
 	" out vec2 dimension;					\n"
 	/* Center of sphere */
-	" out vec3 s_center;					\n"
 	" out float s_radius;					\n"
-	" out mat4 s_view;					\n"
+	" out mat4 s_model_view_inv;				\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
 	"	uint width;					\n"
 	"	uint height;					\n"
 	" };							\n"
 	" void main(){						\n"
-	"	s_view = view;					\n"
+	"	s_model_view_inv = inverse(view * r_model);					\n"
 	"	s_radius = r_radius;					\n"
-	"	vec4 c = vec4(r_model[3][0], r_model[3][1], r_model[3][2], 1.0);	\n"
-	"	s_center = (view*c).xyz;				\n "
 	"	dimension = vec2(width, height);			\n"
 	" 	gl_Position = vec4(r_position, 0.0, 1.0); 		\n"
 	"} 								\n"
 };
+
 
 
 const char light_game_implicit_sphere_fragment_shader_source[] = 
@@ -71,25 +69,34 @@ const char light_game_implicit_sphere_fragment_shader_source[] =
 	"#version 330 core 				\n"
 	"out vec4 fcolor; 				\n"
 	"in vec2 dimension;				\n"
-	"in vec3 s_center;				\n"
 	"in float s_radius;				\n"
 	"in mat4 s_view;				\n"
+	"in mat4 s_model_view_inv;				\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
 	"layout(location=1) out vec3 position_texture;	\n"
 	"layout(location=2) out vec3 color_texture;	\n"
+	"	\n"
+	"float cylinder(vec3 p, float radius){			\n"
+	"	return length(p) - radius;					\n"
+	"}									\n"
 	"void main(){					\n"
-	"	vec3 center = s_center;			\n"
 	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
-	"	float a = dot(uv, uv);				\n"
-	"	float b = 2.0*dot(-center, uv);			\n"
-	"	float c = dot(center, center) - s_radius*s_radius;		\n"
-	"	float d = b*b - 4.0*a*c;			\n"
-	"	if(d >= 0.0){					\n"
-	"		color_texture = vec3(1.0, 0.0, 0.0); 	\n"
-	"	}else{discard;}					\n"
+	"	float t = 0.0;					\n"
+	"	float t_max = 300.0;				\n"
+	"	for(int i = 0; i < 32; i++){			\n"
+	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
+	"		float h = cylinder(p.xyz, s_radius);	\n"
+	"		if(h < 0.001 || t > t_max){break;}			\n" 
+	"		t += h;					\n"
+	"	}						\n"
+	"	if(t < t_max){					\n"
+	"		color_texture = vec3(1.0, 0.0, 0.0);	\n"
+	"	}						\n"
+	"	else{discard;}"
 	"}							\n"
 };
+
 
 /* 
  * Implcit sphere instance. Should be at most one instance
@@ -293,7 +300,7 @@ const char light_game_implicit_cylinder_fragment_shader_source[] =
 	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
 	"	float t = 0.0;					\n"
-	"	float t_max = 100.0;				\n"
+	"	float t_max = 300.0;				\n"
 	"	for(int i = 0; i < 32; i++){			\n"
 	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
 	"		float h = cylinder(p.xyz, s_height, s_radius);	\n"
@@ -461,8 +468,7 @@ int light_game_implicit_cylinder_instance_commit(struct light_game_implicit_cyli
 }
 
 
-void light_game_implcit_cylinder_render(struct light_game_implicit_cylinder *implicit_cyinder, struct light_game_implicit_cyinder_instance *instance, uint32_t instance_count)
-
+void light_game_implcit_cylinder_render(struct light_game_implicit_cylinder *implicit_cyinder, struct light_game_implicit_cylinder_instance *instance, uint32_t instance_count)
 {
 	glDisable(GL_DEPTH_TEST);
 	light_surface_render_instanced(&implicit_cyinder->surface, instance_count);
@@ -520,7 +526,7 @@ const char light_game_implicit_box_fragment_shader_source[] =
 	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
 	"	float t = 0.0;					\n"
-	"	float t_max = 100.0;				\n"
+	"	float t_max = 300.0;				\n"
 	"	for(int i = 0; i < 32; i++){			\n"
 	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
 	"		float h = box(p.xyz, s_dim);	\n"
@@ -528,7 +534,7 @@ const char light_game_implicit_box_fragment_shader_source[] =
 	"		t += h;					\n"
 	"	}						\n"
 	"	if(t < t_max){					\n"
-	"		color_texture = vec3(s_dim);	\n"
+	"		color_texture = vec3(0.0, 0.0, 1.0);	\n"
 	"	}						\n"
 	"	else{discard;}"
 	"}							\n"
@@ -670,7 +676,7 @@ int light_game_implicit_box_instance_commit(struct light_game_implicit_box *impl
 }
 
 
-void light_game_implcit_box_render(struct light_game_implicit_box *implicit_cyinder, struct light_game_implicit_cyinder_instance *instance, uint32_t instance_count)
+void light_game_implcit_box_render(struct light_game_implicit_box *implicit_cyinder, struct light_game_implicit_box_instance *instance, uint32_t instance_count)
 
 {
 	glDisable(GL_DEPTH_TEST);
@@ -763,7 +769,7 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	const uint32_t cylinder_count = 1;
+	const uint32_t cylinder_count = 3;
 	struct light_game_implicit_cylinder_instance cylinder_instance[cylinder_count];
 	result = light_game_implicit_cylinder_instance_init(&implicit_cylinder, cylinder_instance, cylinder_count);
 	
@@ -776,7 +782,7 @@ int main(int args, char *argv[])
 			cylinder_instance[i].height = 1.0f;
 
 			cylinder_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 5.0+1.0f*i, .y = -2.0f*i, .z = 2.0f},
+				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 2.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -793,7 +799,7 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	const uint32_t box_count = 1;
+	const uint32_t box_count = 2;
 	struct light_game_implicit_box_instance box_instance[box_count];
 	result = light_game_implicit_box_instance_init(&implicit_box, box_instance, box_count);
 	
@@ -805,7 +811,7 @@ int main(int args, char *argv[])
 			box_instance[i].dimension = (struct vec3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 			box_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = -4.0+1.0f*i, .y = -2.0f*i, .z = 2.0f},
+				.position = (struct vec3){.x = -1.0f*i, .y = -2.0f*i, .z = 0.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -882,13 +888,13 @@ int main(int args, char *argv[])
 
 		for(uint32_t i = 0; i < box_count; i++)
 		{
-			box_body[i].position = v3add(cylinder_body[i].position, v3scl(cylinder_body[i].velocity, deltatime));
+			box_body[i].position = v3add(box_body[i].position, v3scl(box_body[i].velocity, deltatime));
 			struct vec3 p = box_body[i].position;
 			box_instance[i].translation = m4x4trs(p);
 		}
 
 
-		light_game_implicit_box_instance_commit(&implicit_cylinder, cylinder_instance, cylinder_count);
+		light_game_implicit_box_instance_commit(&implicit_box, box_instance, box_count);
 
 
 
