@@ -1,4 +1,10 @@
 #include "camera.h"
+	
+struct glsl_view_buffer{
+	struct mat4x4 view;
+	GLuint width;	
+	GLuint height;	
+};
 
 
 void light_camera_initialize(struct light_camera_view_state *view_state, GLuint buffer_base_index)
@@ -6,7 +12,7 @@ void light_camera_initialize(struct light_camera_view_state *view_state, GLuint 
 
 	glGenBuffers(1, &view_state->camera_buffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, view_state->camera_buffer);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(struct mat4x4), 0, GL_STREAM_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(struct glsl_view_buffer), 0, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	
 	view_state->buffer_base_index = buffer_base_index;	
@@ -29,19 +35,19 @@ int light_camera_buffer_bind(struct light_camera_view_state *view_state, GLuint 
 
 void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32_t width, uint32_t height)
 {
-	float ratio = ((float)width / (float)height); 
-	struct mat4x4 projection = m4x4pers(ratio, view_state->fov, view_state->near, view_state->far);
 
-
+	/* Translate camera */
 	struct mat4x4 rotation = m4x4rote(view_state->rotation);
 	struct mat4x4 position = m4x4trs(view_state->position);
 	struct mat4x4 view = m4x4mul(rotation, position);
 
-	view = m4x4mul(projection, view);
+	/* Upload to shader program buffer */
 	{
 		glBindBuffer(GL_UNIFORM_BUFFER, view_state->camera_buffer);
-		struct mat4x4 *view_dest = (struct mat4x4 *)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-		memcpy(view_dest, &view, sizeof(struct mat4x4));
+		struct glsl_view_buffer *view_buffer = (struct glsl_view_buffer *)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+		memcpy(&view_buffer->view, &view, sizeof(struct mat4x4));
+		view_buffer->width = width;
+		view_buffer->height = height;
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}

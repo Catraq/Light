@@ -7,11 +7,7 @@ void light_scene_view_initialize(struct light_camera_view_state *view_state, GLu
 
 	//Camera attributes 
 	const float fov = 3.14f/3.0f;
-	const float far = 1000.0f;
-	const float close = 1.0f;
 
-	view_state->near = close;
-	view_state->far = far;
 	view_state->fov = fov;
 	
 	//Setup camera. 
