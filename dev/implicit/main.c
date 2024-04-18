@@ -48,13 +48,16 @@ const char light_game_implicit_sphere_shader_source[] =
 	" out vec2 dimension;					\n"
 	/* Center of sphere */
 	" out float s_radius;					\n"
+	" out float s_fov;					\n"
 	" out mat4 s_model_view_inv;				\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
+	"	float fov;					\n"
 	"	uint width;					\n"
 	"	uint height;					\n"
 	" };							\n"
 	" void main(){						\n"
+	"	s_fov = fov;					\n"
 	"	s_model_view_inv = inverse(view * r_model);					\n"
 	"	s_radius = r_radius;					\n"
 	"	dimension = vec2(width, height);			\n"
@@ -71,6 +74,7 @@ const char light_game_implicit_sphere_fragment_shader_source[] =
 	"in vec2 dimension;				\n"
 	"in float s_radius;				\n"
 	"in mat4 s_view;				\n"
+	"in float s_fov;				\n"
 	"in mat4 s_model_view_inv;				\n"
 	"layout(location=0) out vec3 normal_texture;	\n"
 	"layout(location=1) out vec3 position_texture;	\n"
@@ -82,6 +86,7 @@ const char light_game_implicit_sphere_fragment_shader_source[] =
 	"void main(){					\n"
 	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
+	"	uv = normalize(uv);				\n"
 	"	float t = 0.0;					\n"
 	"	float t_max = 300.0;				\n"
 	"	for(int i = 0; i < 32; i++){			\n"
@@ -261,6 +266,7 @@ const char light_game_implicit_cylinder_shader_source[] =
 	" out mat4 s_model_view_inv;				\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
+	"	float fov;					\n"
 	"	uint width;					\n"
 	"	uint height;					\n"
 	" };							\n"
@@ -299,6 +305,7 @@ const char light_game_implicit_cylinder_fragment_shader_source[] =
 	"	vec3 center = s_center;			\n"
 	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
+	"	uv = normalize(uv);				\n"
 	"	float t = 0.0;					\n"
 	"	float t_max = 300.0;				\n"
 	"	for(int i = 0; i < 32; i++){			\n"
@@ -492,6 +499,7 @@ const char light_game_implicit_box_shader_source[] =
 	" out mat4 s_model_view_inv;				\n"
 	" uniform scene{ 					\n"
 	"	mat4 view; 					\n"
+	"	float fov;					\n"
 	"	uint width;					\n"
 	"	uint height;					\n"
 	" };							\n"
@@ -523,8 +531,9 @@ const char light_game_implicit_box_fragment_shader_source[] =
 	"	return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);		\n"
 	"}									\n"
 	"void main(){					\n"
-	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
+	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1);	\n"
 	"	uv.x *= dimension.x/dimension.y;		\n"
+	"	uv = normalize(uv);				\n"
 	"	float t = 0.0;					\n"
 	"	float t_max = 300.0;				\n"
 	"	for(int i = 0; i < 32; i++){			\n"
@@ -769,7 +778,7 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	const uint32_t cylinder_count = 3;
+	const uint32_t cylinder_count = 5;
 	struct light_game_implicit_cylinder_instance cylinder_instance[cylinder_count];
 	result = light_game_implicit_cylinder_instance_init(&implicit_cylinder, cylinder_instance, cylinder_count);
 	
@@ -782,7 +791,7 @@ int main(int args, char *argv[])
 			cylinder_instance[i].height = 1.0f;
 
 			cylinder_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 2.0f},
+				.position = (struct vec3){.x = 1.0f*i, .y = 2.0f*i, .z = 10.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -799,7 +808,7 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	const uint32_t box_count = 2;
+	const uint32_t box_count = 5;
 	struct light_game_implicit_box_instance box_instance[box_count];
 	result = light_game_implicit_box_instance_init(&implicit_box, box_instance, box_count);
 	
@@ -811,7 +820,7 @@ int main(int args, char *argv[])
 			box_instance[i].dimension = (struct vec3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 			box_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = -1.0f*i, .y = -2.0f*i, .z = 0.0f},
+				.position = (struct vec3){.x = -1.0f*i, .y = -2.0f*i, .z = 10.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
