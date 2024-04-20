@@ -2,8 +2,7 @@
 	
 struct glsl_view_buffer{
 	struct mat4x4 view;
-	GLuint width;	
-	GLuint height;	
+	struct mat4x4 view_inv;
 };
 
 
@@ -46,8 +45,10 @@ void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32
 		glBindBuffer(GL_UNIFORM_BUFFER, view_state->camera_buffer);
 		struct glsl_view_buffer *view_buffer = (struct glsl_view_buffer *)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
 		memcpy(&view_buffer->view, &view, sizeof(struct mat4x4));
-		view_buffer->width = width;
-		view_buffer->height = height;
+
+		int result = 0;
+		view_buffer->view_inv = m4x4inv(&view, &result);
+
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}

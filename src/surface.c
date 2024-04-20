@@ -2,7 +2,7 @@
 
 const GLchar light_surface_vertex_shader_source[] = 
 {
-	"#version 330 core 					\n"
+	"#version 430 core 					\n"
 	" layout ( location = 0 ) in vec2 r_position; 		\n"
 	" out vec2 f_uv;					\n"
 	" void main(){						\n"
@@ -13,7 +13,7 @@ const GLchar light_surface_vertex_shader_source[] =
 
 
 const GLchar light_surface_fragment_shader_source[] = {
-	"#version 330 core 				\n"
+	"#version 430 core 				\n"
 	"uniform sampler2D in_texture;			\n"
 	"out vec4 fcolor; 				\n"
 	"in vec2 f_uv;					\n"
@@ -155,7 +155,6 @@ void light_surface_render(struct light_surface *light_surface, GLuint texture)
 {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glBindSampler(0, texture);
 		
 	glUseProgram(light_surface->program);
 	glBindVertexArray(light_surface->vertex_array);
@@ -163,19 +162,5 @@ void light_surface_render(struct light_surface *light_surface, GLuint texture)
 	glDrawElements(GL_TRIANGLE_STRIP, light_surface->draw_count, GL_UNSIGNED_INT, 0);	
 	glBindVertexArray(0);
 
-}
-
-void light_surface_render_instanced(struct light_surface *light_surface, uint32_t instance_count)
-{
-	glUseProgram(light_surface->program);
-	glBindVertexArray(light_surface->vertex_array);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_surface->element_buffer);
-	glDrawElementsInstanced(GL_TRIANGLES, 
-		  light_surface->draw_count,
-		  GL_UNSIGNED_INT, 
-		  (const void*)(0), 
-		  instance_count
-	);
-	glBindVertexArray(0);
 }
 

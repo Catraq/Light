@@ -36,664 +36,244 @@
 #include "scene/plane.c"
 #include "scene/particle_system.c"
 
-
-const char light_game_implicit_sphere_shader_source[] = 
-{
-	"#version 330 core 					\n"
-	" layout ( location = 0 ) in vec2 r_position; 		\n"
-	" layout ( location = 1 ) in float r_radius;		\n"
-	/* Translation of sphere */
-	" layout ( location = 3 ) in mat4 r_model; 		\n"
-	/* Size of screen */
-	" out vec2 dimension;					\n"
-	/* Center of sphere */
-	" out float s_radius;					\n"
-	" out float s_fov;					\n"
-	" out mat4 s_model_view_inv;				\n"
-	" uniform scene{ 					\n"
-	"	mat4 view; 					\n"
-	"	float fov;					\n"
-	"	uint width;					\n"
-	"	uint height;					\n"
-	" };							\n"
-	" void main(){						\n"
-	"	s_fov = fov;					\n"
-	"	s_model_view_inv = inverse(view * r_model);					\n"
-	"	s_radius = r_radius;					\n"
-	"	dimension = vec2(width, height);			\n"
-	" 	gl_Position = vec4(r_position, 0.0, 1.0); 		\n"
-	"} 								\n"
-};
-
-
-
-const char light_game_implicit_sphere_fragment_shader_source[] = 
-{
-	"#version 330 core 				\n"
-	"out vec4 fcolor; 				\n"
-	"in vec2 dimension;				\n"
-	"in float s_radius;				\n"
-	"in mat4 s_view;				\n"
-	"in float s_fov;				\n"
-	"in mat4 s_model_view_inv;				\n"
-	"layout(location=0) out vec3 normal_texture;	\n"
-	"layout(location=1) out vec3 position_texture;	\n"
-	"layout(location=2) out vec3 color_texture;	\n"
-	"	\n"
-	"float cylinder(vec3 p, float radius){			\n"
-	"	return length(p) - radius;					\n"
-	"}									\n"
-	"void main(){					\n"
-	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
-	"	uv.x *= dimension.x/dimension.y;		\n"
-	"	uv = normalize(uv);				\n"
-	"	float t = 0.0;					\n"
-	"	float t_max = 300.0;				\n"
-	"	for(int i = 0; i < 32; i++){			\n"
-	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
-	"		float h = cylinder(p.xyz, s_radius);	\n"
-	"		if(h < 0.001 || t > t_max){break;}			\n" 
-	"		t += h;					\n"
-	"	}						\n"
-	"	if(t < t_max){					\n"
-	"		color_texture = vec3(1.0, 0.0, 0.0);	\n"
-	"	}						\n"
-	"	else{discard;}"
-	"}							\n"
-};
-
-
-/* 
- * Implcit sphere instance. Should be at most one instance
- * but should not make any difference if multiple is used. 
- */
-struct light_game_implicit_sphere
-{
-	/* Full screen quad used for rendering the implcit sphere. */
-	struct light_surface surface;
-
-	/* Buffer for all instances */
-	GLuint instance_buffer;
-};
-
 /*
- * Mirrored in GPU. Have to correspond with shader input. 
- * Adjust vertex attribute location if changed. 
+ * mirrored in gpu. have to correspond with shader input. 
+ * adjust vertex attribute location if changed. 
  */
 struct light_game_implicit_sphere_instance
 {
 	struct mat4x4 translation;
 
-	/* TODO: radius of each sphere  */
-	float radius 
+	struct mat4x4 translation_inv;
+
+	/* todo: radius of each sphere  */
+	float radius[4] 
 };
 
-int light_game_implicit_sphere_init(struct light_scene_instance *scene, struct light_game_implicit_sphere *implicit_sphere)
-{
-	int result = 0;
-	
-	/* Create quad with implcit sphere shader */
-	struct light_surface surface;
-	result = light_surface_initialize_vertex_fragement_source(&surface, light_game_implicit_sphere_shader_source, light_game_implicit_sphere_fragment_shader_source);
-	if(result < 0)
-	{
-		fprintf(stderr, "light_surface_initialize_vertex_fragment_source(): failed. \n");
-		return -1;
-	}
-	
-	const char *attribute_name = "r_model";
-	GLint translation_index = glGetAttribLocation(surface.program, attribute_name);
-	if(translation_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_name);
-		return -1;	
-	}
-
-	const char *attribute_radius_name = "r_radius";
-	GLint radius_index = glGetAttribLocation(surface.program, attribute_radius_name);
-	if(radius_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_radius_name);
-		return -1;	
-	}
-
-	glGenBuffers(1, &implicit_sphere->instance_buffer);
-	glBindVertexArray(surface.vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_sphere->instance_buffer);
-	{
-		GLuint stride = sizeof(struct light_game_implicit_sphere_instance);
-		GLuint offset = 0;
-
-
-		GLuint location = translation_index;
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
-
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(2*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;	
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(3*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-
-		glEnableVertexAttribArray(radius_index);
-		glVertexAttribPointer(radius_index, 1, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(4*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(radius_index, 1);
-
-
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	/* Bind shader program buffers to buffers in scene */
-	result =  light_scene_bind(scene, surface.program);
-	if(result < 0)
-	{
-		light_surface_deinitialize(&surface);
-
-		glDeleteBuffers(1, &implicit_sphere->instance_buffer);
-
-		printf("light_scene_bind(): Failed. \n");	
-		return -1;
-	}
-
-
-	implicit_sphere->surface = surface;
-
-	return 0;
-}
-
-
-int light_game_implicit_sphere_instance_init(struct light_game_implicit_sphere *implicit_sphere, struct light_game_implicit_sphere_instance *instance, uint32_t instance_count)
-{
-
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_sphere->instance_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(struct light_game_implicit_sphere_instance) * instance_count, instance, GL_STREAM_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	return 0;
-}	
-
-int light_game_implicit_sphere_instance_commit(struct light_game_implicit_sphere *implicit_sphere, struct light_game_implicit_sphere_instance *instance, uint32_t instance_count)
-{
-
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_sphere->instance_buffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(struct light_game_implicit_sphere_instance) * instance_count, instance);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	return 0;
-}
-
-
-void light_game_implcit_sphere_render(struct light_game_implicit_sphere *implicit_sphere, struct light_game_implicit_sphere_instance *instance, uint32_t instance_count)
-
-{
-	glDisable(GL_DEPTH_TEST);
-	light_surface_render_instanced(&implicit_sphere->surface, instance_count);
-	glEnable(GL_DEPTH_TEST);
-}
-
-
-const char light_game_implicit_cylinder_shader_source[] = 
-{
-	"#version 330 core 					\n"
-	" layout ( location = 0 ) in vec2 r_position; 		\n"
-	" layout ( location = 1 ) in float r_radius;		\n"
-	" layout ( location = 2 ) in float r_height;		\n"
-	/* Translation of sphere */
-	" layout ( location = 3 ) in mat4 r_model; 		\n"
-	/* Size of screen */
-	" out vec2 dimension;					\n"
-	/* Center of sphere */
-	" out vec3 s_center;					\n"
-	" out float s_radius;					\n"
-	" out float s_height;					\n"
-	" out mat4 s_view;					\n"
-	" out mat4 s_model_view_inv;				\n"
-	" uniform scene{ 					\n"
-	"	mat4 view; 					\n"
-	"	float fov;					\n"
-	"	uint width;					\n"
-	"	uint height;					\n"
-	" };							\n"
-	" void main(){						\n"
-	"	s_view = view;					\n"
-	"	s_radius = r_radius;				\n"
-	"	s_height = r_height;				\n"
-	"	s_model_view_inv = inverse(view * r_model);		\n"
-	"	vec4 c = vec4(r_model[3][0], r_model[3][1], r_model[3][2], 1.0);	\n"
-	"	s_center = (view*c).xyz;				\n "
-	"	dimension = vec2(width, height);			\n"
-	" 	gl_Position = vec4(r_position, 0.0, 1.0); 		\n"
-	"} 								\n"
-};
-
-
-const char light_game_implicit_cylinder_fragment_shader_source[] = 
-{
-	"#version 330 core 				\n"
-	"out vec4 fcolor; 				\n"
-	"in vec2 dimension;				\n"
-	"in vec3 s_center;				\n"
-	"in float s_radius;				\n"
-	"in float s_height;				\n"
-	"in mat4 s_view;				\n"
-	"in mat4 s_model_view_inv;				\n"
-	"layout(location=0) out vec3 normal_texture;	\n"
-	"layout(location=1) out vec3 position_texture;	\n"
-	"layout(location=2) out vec3 color_texture;	\n"
-	"	\n"
-	"float cylinder(vec3 p, float height, float radius){			\n"
-	"	vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(radius, height);	\n"
-	"	return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));		\n"
-	"}									\n"
-	"void main(){					\n"
-	"	vec3 center = s_center;			\n"
-	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1.0);	\n"
-	"	uv.x *= dimension.x/dimension.y;		\n"
-	"	uv = normalize(uv);				\n"
-	"	float t = 0.0;					\n"
-	"	float t_max = 300.0;				\n"
-	"	for(int i = 0; i < 32; i++){			\n"
-	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
-	"		float h = cylinder(p.xyz, s_height, s_radius);	\n"
-	"		if(h < 0.001 || t > t_max){break;}			\n" 
-	"		t += h;					\n"
-	"	}						\n"
-	"	if(t < t_max){					\n"
-	"		color_texture = vec3(0.0, 1.0, 0.0);	\n"
-	"	}						\n"
-	"	else{discard;}"
-	"}							\n"
-};
-
-/* 
- * Implcit cylinder instance. Should be at most one instance
- * but should not make any difference if multiple is used. 
- */
-struct light_game_implicit_cylinder
-{
-	/* Full screen quad used for rendering the implcit cylinder. */
-	struct light_surface surface;
-
-	/* Buffer for all instances */
-	GLuint instance_buffer;
-};
 
 /*
- * Mirrored in GPU. Have to correspond with shader input. 
- * Adjust vertex attribute location if changed. 
+ * mirrored in gpu. have to correspond with shader input. 
+ * adjust vertex attribute location if changed. 
  */
 struct light_game_implicit_cylinder_instance
 {
 	struct mat4x4 translation;
 
-	/* Radius of each cylinder  */
+	struct mat4x4 translation_inv;
+
+	/* radius of each cylinder  */
 	float radius; 
 
-	/* Height of cylinder */
+	/* height of cylinder */
 	float height;
-};
-
-int light_game_implicit_cylinder_init(struct light_scene_instance *scene, struct light_game_implicit_cylinder *implicit_cylinder)
-{
-	int result = 0;
 	
-	/* Create quad with implcit cylinder shader */
-	struct light_surface surface;
-	result = light_surface_initialize_vertex_fragement_source(&surface, light_game_implicit_cylinder_shader_source, light_game_implicit_cylinder_fragment_shader_source);
-	if(result < 0)
-	{
-		fprintf(stderr, "light_surface_initialize_vertex_fragment_source(): failed. \n");
-		return -1;
-	}
-	
-	const char *attribute_name = "r_model";
-	GLint translation_index = glGetAttribLocation(surface.program, attribute_name);
-	if(translation_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_name);
-		return -1;	
-	}
-
-	const char *attribute_radius_name = "r_radius";
-	GLint radius_index = glGetAttribLocation(surface.program, attribute_radius_name);
-	if(radius_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_radius_name);
-		return -1;	
-	}
-
-	const char *attribute_height_name = "r_height";
-	GLint height_index = glGetAttribLocation(surface.program, attribute_height_name);
-	if(height_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_height_name);
-		return -1;	
-	}
-
-	glGenBuffers(1, &implicit_cylinder->instance_buffer);
-	glBindVertexArray(surface.vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_cylinder->instance_buffer);
-	{
-		GLuint stride = sizeof(struct light_game_implicit_cylinder_instance);
-		GLuint offset = 0;
-
-
-		GLuint location = translation_index;
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
-
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(2*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;	
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(3*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-
-		glEnableVertexAttribArray(radius_index);
-		glVertexAttribPointer(radius_index, 1, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(4*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(radius_index, 1);
-
-		glEnableVertexAttribArray(height_index);
-		glVertexAttribPointer(height_index, 1, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(4*sizeof(struct vec4) + sizeof(float) + offset));
-		glVertexAttribDivisor(height_index, 1);
-
-
-
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	/* Bind shader program buffers to buffers in scene */
-	result =  light_scene_bind(scene, surface.program);
-	if(result < 0)
-	{
-		light_surface_deinitialize(&surface);
-
-		glDeleteBuffers(1, &implicit_cylinder->instance_buffer);
-
-		printf("light_scene_bind(): Failed. \n");	
-		return -1;
-	}
-
-
-	implicit_cylinder->surface = surface;
-
-	return 0;
-}
-
-
-int light_game_implicit_cylinder_instance_init(struct light_game_implicit_cylinder *implicit_cylinder, struct light_game_implicit_cylinder_instance *instance, uint32_t instance_count)
-{
-
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_cylinder->instance_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(struct light_game_implicit_cylinder_instance) * instance_count, instance, GL_STREAM_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	return 0;
-}	
-
-int light_game_implicit_cylinder_instance_commit(struct light_game_implicit_cylinder *implicit_cylinder, struct light_game_implicit_cylinder_instance *instance, uint32_t instance_count)
-{
-
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_cylinder->instance_buffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(struct light_game_implicit_cylinder_instance) * instance_count, instance);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	return 0;
-}
-
-
-void light_game_implcit_cylinder_render(struct light_game_implicit_cylinder *implicit_cyinder, struct light_game_implicit_cylinder_instance *instance, uint32_t instance_count)
-{
-	glDisable(GL_DEPTH_TEST);
-	light_surface_render_instanced(&implicit_cyinder->surface, instance_count);
-	glEnable(GL_DEPTH_TEST);
-}
-
-
-
-const char light_game_implicit_box_shader_source[] = 
-{
-	"#version 330 core 					\n"
-	" layout ( location = 0 ) in vec2 r_position; 		\n"
-	" layout ( location = 1 ) in vec3 r_dim;		\n"
-	/* Translation of sphere */
-	" layout ( location = 3 ) in mat4 r_model; 		\n"
-	/* Size of screen */
-	" out vec2 dimension;					\n"
-	/* Center of sphere */
-	" out vec3 s_dim;					\n"
-	" out mat4 s_view;					\n"
-	" out mat4 s_model_view_inv;				\n"
-	" uniform scene{ 					\n"
-	"	mat4 view; 					\n"
-	"	float fov;					\n"
-	"	uint width;					\n"
-	"	uint height;					\n"
-	" };							\n"
-	" void main(){						\n"
-	"	s_view = view;					\n"
-	"	s_dim = r_dim;					\n"
-	"	s_model_view_inv = inverse(view * r_model);		\n"
-	"	vec4 c = vec4(r_model[3][0], r_model[3][1], r_model[3][2], 1.0);	\n"
-	"	dimension = vec2(width, height);			\n"
-	" 	gl_Position = vec4(r_position, 0.0, 1.0); 		\n"
-	"} 								\n"
-};
-
-
-const char light_game_implicit_box_fragment_shader_source[] = 
-{
-	"#version 330 core 				\n"
-	"out vec4 fcolor; 				\n"
-	"in vec2 dimension;				\n"
-	"in vec3 s_dim;				\n"
-	"in mat4 s_view;				\n"
-	"in mat4 s_model_view_inv;				\n"
-	"layout(location=0) out vec3 normal_texture;	\n"
-	"layout(location=1) out vec3 position_texture;	\n"
-	"layout(location=2) out vec3 color_texture;	\n"
-	"						\n"
-	"float box(vec3 p, vec3 d){			\n"
-	"	vec3 q = abs(p) - d;				\n"
-	"	return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);		\n"
-	"}									\n"
-	"void main(){					\n"
-	"	vec3 uv = vec3(2.0*gl_FragCoord.xy/dimension.xy - 1.0, 1);	\n"
-	"	uv.x *= dimension.x/dimension.y;		\n"
-	"	uv = normalize(uv);				\n"
-	"	float t = 0.0;					\n"
-	"	float t_max = 300.0;				\n"
-	"	for(int i = 0; i < 32; i++){			\n"
-	"		vec4 p = s_model_view_inv * vec4(uv * t, 1.0);			\n"
-	"		float h = box(p.xyz, s_dim);	\n"
-	"		if(h < 0.001 || t > t_max){break;}			\n" 
-	"		t += h;					\n"
-	"	}						\n"
-	"	if(t < t_max){					\n"
-	"		color_texture = vec3(0.0, 0.0, 1.0);	\n"
-	"	}						\n"
-	"	else{discard;}"
-	"}							\n"
-};
-
-/* 
- * Implcit box instance. Should be at most one instance
- * but should not make any difference if multiple is used. 
- */
-struct light_game_implicit_box
-{
-	/* Full screen quad used for rendering the implcit box. */
-	struct light_surface surface;
-
-	/* Buffer for all instances */
-	GLuint instance_buffer;
+	/* Required padding */
+	float dummy[2];
 };
 
 /*
- * Mirrored in GPU. Have to correspond with shader input. 
- * Adjust vertex attribute location if changed. 
+ * mirrored in gpu. have to correspond with shader input. 
+ * adjust vertex attribute location if changed. 
  */
 struct light_game_implicit_box_instance
 {
 	struct mat4x4 translation;
 	
-	/* Box dimension */	
+	struct mat4x4 translation_inv;
+
+	/* box dimension */	
 	struct vec3 dimension;
+
+	float padding[1];
 };
 
-int light_game_implicit_box_init(struct light_scene_instance *scene, struct light_game_implicit_box *implicit_box)
+struct light_game_light_light_instance
 {
-	int result = 0;
-	
-	/* Create quad with implcit box shader */
-	struct light_surface surface;
-	result = light_surface_initialize_vertex_fragement_source(&surface, light_game_implicit_box_shader_source, light_game_implicit_box_fragment_shader_source);
-	if(result < 0)
-	{
-		fprintf(stderr, "light_surface_initialize_vertex_fragment_source(): failed. \n");
-		return -1;
+	struct vec3 postion;
+	float power;
+};
+
+
+size_t light_file_read_buffer(const char *file, uint8_t *buffer, size_t buffer_size)
+{
+	FILE *fp = fopen(file, "r");
+	if(fp == NULL){
+		fprintf(stderr, "Could not open file %s \n", file);
+		return 0;
 	}
 	
-	const char *attribute_name = "r_model";
-	GLint translation_index = glGetAttribLocation(surface.program, attribute_name);
-	if(translation_index == -1){
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	rewind(fp);
 
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_name);
-		return -1;	
+	if(size > buffer_size){
+		fprintf(stderr, "file content of %s (%lu bytes)  greater than buffer size(%lu bytes). \n", file, size, buffer_size);
+		return 0;
 	}
 
-	const char *attribute_dimension_name = "r_dim";
-	GLint dimension_index = glGetAttribLocation(surface.program, attribute_dimension_name);
-	if(dimension_index == -1){
-
-		light_surface_deinitialize(&surface);
-
-		fprintf(stderr, "glGetAttribLocation(): could not find %s .\n", attribute_dimension_name);
-		return -1;	
+	size_t read = fread(buffer, 1, size, fp);
+	if(read != size){
+		fprintf(stderr, "Expected to read (%lu bytes) of %s, but got (%lu bytes). \n", size, file, buffer_size);
+		return 0;
 	}
 
-	glGenBuffers(1, &implicit_box->instance_buffer);
-	glBindVertexArray(surface.vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_box->instance_buffer);
-	{
-		GLuint stride = sizeof(struct light_game_implicit_box_instance);
-		GLuint offset = 0;
 
+	return read;
 
-		GLuint location = translation_index;
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;
+}
 
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(2*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
-		location++;	
-		
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(3*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(location, 1);
+struct light_implicit_instance
+{
+	GLuint compute_program;
+};
 
-		glEnableVertexAttribArray(dimension_index);
-		glVertexAttribPointer(dimension_index, 3, GL_FLOAT, GL_FALSE, stride, (const GLvoid*)(4*sizeof(struct vec4) + offset));
-		glVertexAttribDivisor(dimension_index, 1);
-
-
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	/* Bind shader program buffers to buffers in scene */
-	result =  light_scene_bind(scene, surface.program);
-	if(result < 0)
-	{
-		light_surface_deinitialize(&surface);
-
-		glDeleteBuffers(1, &implicit_box->instance_buffer);
-
-		printf("light_scene_bind(): Failed. \n");	
+int light_implicit_init(struct light_scene_instance *scene, struct light_implicit_instance *instance)
+{
+	const char *compute_shader_filename = "../data/implicit.txt";
+	uint8_t compute_shader_source[8192];
+	size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 8192);
+	if(read == 0){
+		fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
 		return -1;
 	}
 
+	GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+	if(compute_shader == 0)
+	{
+		fprintf(stderr, "glCreateShader(GL_COMPUTE_SHADER) failed.");
+		return -1;
+	}
 
-	implicit_box->surface = surface;
+	
+	const GLchar *source = compute_shader_source;
+	GLint length = read;
+	glShaderSource(compute_shader, 1, &source, &length);
+	glCompileShader(compute_shader);
+	
+	GLint compiled = GL_FALSE;
+	glGetShaderiv(compute_shader, GL_COMPILE_STATUS, &compiled);
+	if(compiled == GL_FALSE){
 
+		GLchar log[8192];
+		GLsizei length;
+		glGetShaderInfoLog(compute_shader, 8192, &length, (GLchar*)&log);
+		if( length != 0 )
+		{
+			fprintf(stderr, " ---- Compilation of shader for implicit rendering failed.  ---- \n %s \n", (GLchar*)&log);
+		}
+
+		glDeleteShader(compute_shader);
+
+		return -1;
+	}
+	
+	GLuint compute_program = glCreateProgram();
+	glAttachShader(compute_program, compute_shader);
+	glLinkProgram(compute_program);
+	
+	glDeleteShader(compute_shader);
+	
+	GLint linked = GL_FALSE;
+	glGetProgramiv(compute_program, GL_LINK_STATUS, &linked);
+	if(linked == GL_FALSE) {
+		GLsizei length;
+		GLchar log[8192];
+		glGetProgramInfoLog(compute_program, 8192, &length, (GLchar*)&log);
+		fprintf(stderr, " ---- Linking of program for implcit rendering failed ---- \n %s \n", (GLchar*)&log);
+
+		glDeleteProgram(compute_program);
+		return -1;
+	}
+
+	int result = light_scene_bind(scene, compute_program);
+	if(result < 0)
+	{
+		glDeleteProgram(compute_program);
+
+		fprintf(stderr, "light_scene_bind() failed. \n");	
+		return -1;
+	}
+
+	instance->compute_program = compute_program;
 	return 0;
 }
 
-
-int light_game_implicit_box_instance_init(struct light_game_implicit_box *implicit_box, struct light_game_implicit_box_instance *instance, uint32_t instance_count)
+struct light_light_instance
 {
+	GLuint compute_program;
 
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_box->instance_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(struct light_game_implicit_box_instance) * instance_count, instance, GL_STREAM_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+};
 
-	return 0;
-}	
-
-int light_game_implicit_box_instance_commit(struct light_game_implicit_box *implicit_box, struct light_game_implicit_box_instance *instance, uint32_t instance_count)
+int light_light_init(struct light_scene_instance *scene, struct light_implicit_instance *instance)
 {
+	const char *compute_shader_filename = "../data/light.txt";
+	uint8_t compute_shader_source[8192];
+	size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 8192);
+	if(read == 0){
+		fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
+		return -1;
+	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, implicit_box->instance_buffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(struct light_game_implicit_box_instance) * instance_count, instance);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+	if(compute_shader == 0)
+	{
+		fprintf(stderr, "glCreateShader(GL_COMPUTE_SHADER) failed.");
+		return -1;
+	}
 
+	
+	const GLchar *source = compute_shader_source;
+	GLint length = read;
+	glShaderSource(compute_shader, 1, &source, &length);
+	glCompileShader(compute_shader);
+	
+	GLint compiled = GL_FALSE;
+	glGetShaderiv(compute_shader, GL_COMPILE_STATUS, &compiled);
+	if(compiled == GL_FALSE){
+
+		GLchar log[8192];
+		GLsizei length;
+		glGetShaderInfoLog(compute_shader, 8192, &length, (GLchar*)&log);
+		if( length != 0 )
+		{
+			fprintf(stderr, " ---- Compilation of shader for lightning rendering failed.  ---- \n %s \n", (GLchar*)&log);
+		}
+
+		glDeleteShader(compute_shader);
+
+		return -1;
+	}
+	
+	GLuint compute_program = glCreateProgram();
+	glAttachShader(compute_program, compute_shader);
+	glLinkProgram(compute_program);
+	
+	glDeleteShader(compute_shader);
+	
+	GLint linked = GL_FALSE;
+	glGetProgramiv(compute_program, GL_LINK_STATUS, &linked);
+	if(linked == GL_FALSE) {
+		GLsizei length;
+		GLchar log[8192];
+		glGetProgramInfoLog(compute_program, 8192, &length, (GLchar*)&log);
+		fprintf(stderr, " ---- Linking of program for lightning rendering failed ---- \n %s \n", (GLchar*)&log);
+
+		glDeleteProgram(compute_program);
+		return -1;
+	}
+
+	int result = light_scene_bind(scene, compute_program);
+	if(result < 0)
+	{
+		glDeleteProgram(compute_program);
+
+		fprintf(stderr, "light_scene_bind() failed. \n");	
+		return -1;
+	}
+
+	instance->compute_program = compute_program;
 	return 0;
 }
-
-
-void light_game_implcit_box_render(struct light_game_implicit_box *implicit_cyinder, struct light_game_implicit_box_instance *instance, uint32_t instance_count)
-
-{
-	glDisable(GL_DEPTH_TEST);
-	light_surface_render_instanced(&implicit_cyinder->surface, instance_count);
-	glEnable(GL_DEPTH_TEST);
-}
-
-
 
 
 
@@ -702,11 +282,11 @@ int main(int args, char *argv[])
 	int result;
 
 	
-	/* OpenGL Platform initialization */
+	/* opengl platform initialization */
 	result = light_platform_initialize();
 	if(result < 0)
 	{
-		fprintf(stderr, "Error: could not initialize platform.\n");
+		fprintf(stderr, "error: could not initialize platform.\n");
 		exit(EXIT_FAILURE);
 	}
 	light_platform_update();
@@ -714,51 +294,61 @@ int main(int args, char *argv[])
 
 	
 	
-	/*Create a quad as render surface */	
+	/*create a quad as render surface */	
 	struct light_surface quad_surface;
 	result = light_surface_initialize(&quad_surface);
 	if(result <0)
 	{
-		printf("light_surface_initialize(): Failed. \n");
+		printf("light_surface_initialize(): failed. \n");
 		exit(EXIT_FAILURE);	
 	}
-
 	
-
-	/* Initialize framebuffer */
-	uint32_t frame_width = 512, frame_height = 512;
-	struct light_framebuffer framebuffer;
-	light_framebuffer_initialize(&framebuffer, frame_width, frame_height);
+	struct light_scene_instance_build scene_instance_build = {
+		.sphere_count 	= 10,
+		.box_count 	= 10,
+		.cylinder_count = 10
+	};
 	
 	struct light_scene_instance scene;
 	result = light_scene_initialize(&scene);
 	if(result < 0)
 	{
-		printf("light_scene_initialize(): Failed. \n");
+		printf("light_scene_initialize(): failed. \n");
 		exit(EXIT_FAILURE);
 	}
 
-
-
-
-	struct light_game_implicit_sphere implicit_sphere;
-	result = light_game_implicit_sphere_init(&scene, &implicit_sphere);
+	struct light_implicit_instance implicit_instance;
+	result = light_implicit_init(&scene, &implicit_instance);
 	if(result < 0)
 	{
-		printf("light_game_implcit_sphere_init(): failed. \n");	
+		printf("light_implicit_init(): failed. \n");
 		exit(EXIT_FAILURE);
 	}
+
+	struct light_light_instance light_instance;
+	result = light_light_init(&scene, &light_instance);
+	if(result < 0)
+	{
+		printf("light_light_init(): failed. \n");
+		exit(EXIT_FAILURE);
+	}
+
+	GLuint composed_texture;
+	glGenTextures(1, &composed_texture);
+	glBindTexture(GL_TEXTURE_2D, composed_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+
+	const uint32_t sphere_count = 10;
+	struct light_game_implicit_sphere_instance sphere_instance[sphere_count];
 	
-	const uint32_t game_mesh_instance_count = 10;
-	struct light_game_implicit_sphere_instance game_mesh_instance[game_mesh_instance_count];
-	result = light_game_implicit_sphere_instance_init(&implicit_sphere, game_mesh_instance, game_mesh_instance_count);
-	
-	uint32_t body_count = game_mesh_instance_count;
-	struct light_physic_particle *body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * body_count); 
-	for(uint32_t i = 0; i < body_count; i++)
+	struct light_physic_particle *body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * sphere_count); 
+	for(uint32_t i = 0; i < sphere_count; i++)
 	{
 		{
-			game_mesh_instance[i].radius = 1.0f;
+			sphere_instance[i].radius[0] = 1.0f;
 
 			body[i] = (struct light_physic_particle){
 				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 10.0f},
@@ -769,21 +359,10 @@ int main(int args, char *argv[])
 		}
 	}
 	
-
-	struct light_game_implicit_cylinder implicit_cylinder;
-	result = light_game_implicit_cylinder_init(&scene, &implicit_cylinder);
-	if(result < 0)
-	{
-		printf("light_game_implcit_sphere_init(): failed. \n");	
-		exit(EXIT_FAILURE);
-	}
-
 	const uint32_t cylinder_count = 5;
 	struct light_game_implicit_cylinder_instance cylinder_instance[cylinder_count];
-	result = light_game_implicit_cylinder_instance_init(&implicit_cylinder, cylinder_instance, cylinder_count);
-	
-
 	struct light_physic_particle *cylinder_body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * cylinder_count); 
+
 	for(uint32_t i = 0; i < cylinder_count; i++)
 	{
 		{
@@ -791,7 +370,7 @@ int main(int args, char *argv[])
 			cylinder_instance[i].height = 1.0f;
 
 			cylinder_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = 2.0f*i, .z = 10.0f},
+				.position = (struct vec3){.x = 1.0f*i, .y = 2.0f*i, .z = 7.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -800,27 +379,17 @@ int main(int args, char *argv[])
 	}
 
 
-	struct light_game_implicit_box implicit_box;
-	result = light_game_implicit_box_init(&scene, &implicit_box);
-	if(result < 0)
-	{
-		printf("light_game_implcit_sphere_init(): failed. \n");	
-		exit(EXIT_FAILURE);
-	}
-
 	const uint32_t box_count = 5;
 	struct light_game_implicit_box_instance box_instance[box_count];
-	result = light_game_implicit_box_instance_init(&implicit_box, box_instance, box_count);
-	
-
 	struct light_physic_particle *box_body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * box_count); 
+
 	for(uint32_t i = 0; i < box_count; i++)
 	{
 		{
 			box_instance[i].dimension = (struct vec3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 			box_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = -1.0f*i, .y = -2.0f*i, .z = 10.0f},
+				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 4.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -838,7 +407,25 @@ int main(int args, char *argv[])
 	clock_t 	fps_sample_last		= clock();
 	
 	clock_t time = clock();
- 	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);	
+
+	GLuint sphere_buffer;
+	glGenBuffers(1, &sphere_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sphere_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(sphere_instance), sphere_instance, GL_STREAM_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	GLuint cylinder_buffer;
+	glGenBuffers(1, &cylinder_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinder_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(cylinder_instance), cylinder_instance, GL_STREAM_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	GLuint box_buffer;
+	glGenBuffers(1, &box_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, box_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(box_instance), box_instance, GL_STREAM_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
 	while(!light_platform_exit())
     	{
 
@@ -849,38 +436,38 @@ int main(int args, char *argv[])
 
 		fps_frame_count++;
 		float fps_interval_time = (float)(clock() - fps_sample_last)/(float)CLOCKS_PER_SEC;
-		if(fps_interval_time > fps_sample_interval)
+		if(fps_interval_time > fps_sample_interval || fps_frame_count > 500)
 		{
 			uint32_t frames_per_sec = (float)fps_frame_count/fps_interval_time;
 			fps_frame_count  = 0;
 			fps_sample_last = clock();
 			
-			printf("5s FPS average: %u \n", frames_per_sec);
+			printf("5s fps average: %u \n", frames_per_sec);
 
 		}
 #if 0
 		struct vec3 gravity = (struct vec3){.x = 0.0f, .y = -9.82f, .z=0.0f};
-		for(uint32_t i = 1; i < body_count; i++)
+		for(uint32_t i = 1; i < sphere_count; i++)
 		{
 			body[i].velocity = v3add(body[i].velocity, v3scl(gravity, deltatime));	
 		}
 	
 		body[0].velocity = (struct vec3){.x = 0.0f, .y=0.0f, .z=0.0f};	
 		body[0].position = (struct vec3){.x = 0.0f, .y=0.0f, .z=10.0f};	
-		light_physic_rope(body, body_count);
+		light_physic_rope(body, sphere_count);
 #endif 
 	
 		
-		/* Copy the physic simulation into the rendering buffer */
-		for(uint32_t i = 0; i < game_mesh_instance_count; i++)
+		/* copy the physic simulation into the rendering buffer */
+		for(uint32_t i = 0; i < sphere_count; i++)
 		{
 			body[i].position = v3add(body[i].position, v3scl(body[i].velocity, deltatime));
 			struct vec3 p = body[i].position;
-			game_mesh_instance[i].translation = m4x4trs(p);
+			sphere_instance[i].translation = m4x4trs(p);
+			sphere_instance[i].translation_inv = m4x4inv(&sphere_instance[i].translation, &result); 
 		}
 
 
-		light_game_implicit_sphere_instance_commit(&implicit_sphere, game_mesh_instance, game_mesh_instance_count);
 	
 
 		for(uint32_t i = 0; i < cylinder_count; i++)
@@ -888,10 +475,8 @@ int main(int args, char *argv[])
 			cylinder_body[i].position = v3add(cylinder_body[i].position, v3scl(cylinder_body[i].velocity, deltatime));
 			struct vec3 p = cylinder_body[i].position;
 			cylinder_instance[i].translation = m4x4trs(p);
+			cylinder_instance[i].translation_inv = m4x4inv(&cylinder_instance[i].translation, &result); 
 		}
-
-
-		light_game_implicit_cylinder_instance_commit(&implicit_cylinder, cylinder_instance, cylinder_count);
 
 
 
@@ -900,51 +485,72 @@ int main(int args, char *argv[])
 			box_body[i].position = v3add(box_body[i].position, v3scl(box_body[i].velocity, deltatime));
 			struct vec3 p = box_body[i].position;
 			box_instance[i].translation = m4x4trs(p);
+			box_instance[i].translation_inv = m4x4inv(&box_instance[i].translation, &result); 
 		}
-
-
-		light_game_implicit_box_instance_commit(&implicit_box, box_instance, box_count);
-
-
-
-
-	
 		uint32_t width, height;
 		light_platform_resolution(&width, &height);
-
-		glViewport(0, 0, width, height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
-	
-
-		/* Resize and clear framebuffer */	
-		light_framebuffer_resize(&framebuffer, width, height);
-
-		glBindTexture(GL_TEXTURE_2D, framebuffer.color_texture);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, NULL);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.framebuffer);
-				
-			
-
+		
 
 		light_scene_update(&scene, width, height, deltatime);
+		
 
-		light_game_implcit_sphere_render(&implicit_sphere, game_mesh_instance, game_mesh_instance_count);
+		glBindTexture(GL_TEXTURE_2D, composed_texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
 
-		light_game_implcit_cylinder_render(&implicit_cylinder, cylinder_instance, cylinder_count);
 
-		light_game_implcit_box_render(&implicit_box, box_instance, box_count);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glViewport(0, 0, width, height);
+		glBindImageTexture(0, scene.framebuffer.color_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		glBindImageTexture(1, scene.framebuffer.position_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		glBindImageTexture(2, scene.framebuffer.normal_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+		glBindImageTexture(3, composed_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
 
-		light_surface_render(&quad_surface, framebuffer.color_texture);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, sphere_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(sphere_instance), sphere_instance);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, sphere_buffer);
+	
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinder_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(cylinder_instance), cylinder_instance);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cylinder_buffer);
+	
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, box_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(box_instance), box_instance);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, box_buffer);
+	
+
+		/* implicit start */	
+		glUseProgram(implicit_instance.compute_program);
+		glDispatchCompute(width, height, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		/* implcit end */
+
+		glUseProgram(light_instance.compute_program);
+		glDispatchCompute(width, height, 1);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		glViewport(0, 0, width/2, height/2);
+		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		light_surface_render(&quad_surface, scene.framebuffer.color_texture);
+
+		glViewport(width/2, 0, width/2, height/2);
+		light_surface_render(&quad_surface, scene.framebuffer.position_texture);
+
+		glViewport(0, height/2, width/2, height/2);
+		light_surface_render(&quad_surface, scene.framebuffer.normal_texture);
+
+		glViewport(width/2, height/2, width/2, height/2);
+		light_surface_render(&quad_surface, composed_texture);
+
+
+
 
 		light_platform_update();
     	}
 	
-	printf( "Exiting");
+	printf( "exiting");
 	light_platform_deinitialize();
 		
 	return (result);
