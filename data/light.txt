@@ -146,7 +146,7 @@ void main()
 	vec3 c = imageLoad(color, coord).xyz;
 	
 	
-	vec3 light_pos = vec3(0.0, 0.0, 10.0);
+	vec3 light_pos = vec3(0.0, 0.0, -10.0);
 	vec3 light_color = vec3(1.0, 1.0, 1.0);
 	
 	float len = length(p - light_pos);
@@ -159,25 +159,24 @@ void main()
 	float t_max = 100.0;
 	float t = 0.0;
 	
-	imageStore(composed, coord, vec4(result, 0.0));;
+	imageStore(composed, coord, vec4(0.0));
 	
 	distance_result d_res; 
 	for(int i = 0; i < 32; i++)
 	{
-		d_res = distance(view_inv*vec4(-light_dir*t, 1.0), t_max);
+		d_res = distance((vec4(light_pos, 1.0) + vec4(light_dir*t, 1.0)), t_max);
 		if(d_res.min < 0.01)
 		{
-			imageStore(composed, coord, vec4(0.0));;
-			return;
+			break;
 		}
 		t = t + d_res.min;
 	}
 	
-	if(t > len)
+	if(t > len-2)
 	{
 		imageStore(composed, coord, vec4(result, 0.0));;
 		return;
 	}
 	
-	//imageStore(composed, coord, vec4(0.0));;
+	
 }

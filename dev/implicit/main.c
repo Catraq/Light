@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <sys/time.h>
+
 #include "math/vec.h"
 #include "math/mat4x4.h"
 #include "platform.h"
@@ -204,7 +206,7 @@ struct light_light_instance
 
 };
 
-int light_light_init(struct light_scene_instance *scene, struct light_implicit_instance *instance)
+int light_light_init(struct light_scene_instance *scene, struct light_light_instance *instance)
 {
 	const char *compute_shader_filename = "../data/light.txt";
 	uint8_t compute_shader_source[8192];
@@ -404,9 +406,13 @@ int main(int args, char *argv[])
 
 	uint32_t 	fps_frame_count 	= 0;
 	float 		fps_sample_interval 	= 5.0f;	
-	clock_t 	fps_sample_last		= clock();
-	
-	clock_t time = clock();
+	float 		fps_time;
+	struct timeval 	fps_time_last;
+	struct timeval 	fps_time_curr;
+
+	gettimeofday(&fps_time_last, NULL);
+
+
 
 	GLuint sphere_buffer;
 	glGenBuffers(1, &sphere_buffer);
@@ -426,23 +432,25 @@ int main(int args, char *argv[])
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(box_instance), box_instance, GL_STATIC_DRAW);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
+	
 	while(!light_platform_exit())
     	{
-
-	
-		float deltatime = (float)(clock() - time)/(float)CLOCKS_PER_SEC;
-
-		time = clock();
+		struct timeval fps_time_curr_tmp;
+		gettimeofday(&fps_time_curr_tmp, NULL);	
+		float deltatime = fps_time_curr_tmp.tv_sec - fps_time_curr.tv_sec + (float)(fps_time_curr_tmp.tv_usec - fps_time_curr.tv_usec)/(1000.0f*1000.0f);
+		fps_time_curr = fps_time_curr_tmp ;
+		fps_time = fps_time + deltatime;
 
 		fps_frame_count++;
-		float fps_interval_time = (float)(clock() - fps_sample_last)/(float)CLOCKS_PER_SEC;
-		if(fps_interval_time > fps_sample_interval || fps_frame_count > 500)
+		if(fps_time> fps_sample_interval)
 		{
-			uint32_t frames_per_sec = (float)fps_frame_count/fps_interval_time;
+			uint32_t frames_per_sec = (float)fps_frame_count/fps_time;
+			gettimeofday(&fps_time_last, NULL);
+
+			printf("5s fps average(%u frames): %u \n", fps_frame_count, frames_per_sec);
+
+			fps_time = 0.0f;
 			fps_frame_count  = 0;
-			fps_sample_last = clock();
-			
-			printf("5s fps average: %u \n", frames_per_sec);
 
 		}
 #if 0
