@@ -89,14 +89,14 @@ float box(vec3 p, vec3 d){
 
 struct distance_result
 {
-	vec3 p;
+	vec4 p;
 	float min;
 };
 
 distance_result distance(vec4 p, float t_max)
 {
 	
-	vec3 p_res;
+	vec4 p_res;
 	float min_t = t_max;
 	
 	for(int i = 0; i < spheres.length(); i++)
@@ -104,7 +104,7 @@ distance_result distance(vec4 p, float t_max)
 		vec4 e = spheres[i].translation_inv*p;
 		float t = sphere(e.xyz, spheres[i].radius[0]);
 		if(t < min_t){
-			p_res = e.xyz;
+			p_res = spheres[i].translation*p;
 			min_t = t;
 		}
 	}
@@ -115,7 +115,7 @@ distance_result distance(vec4 p, float t_max)
 		vec4 e = cylinders[i].translation_inv*p;
 		float t = cylinder(e.xyz, cylinders[i].radius, cylinders[i].height);
 		if(t < min_t){
-			p_res = e.xyz;
+			p_res = cylinders[i].translation*p;
 			min_t = t;
 		}
 	}
@@ -126,7 +126,7 @@ distance_result distance(vec4 p, float t_max)
 		vec4 e = boxes[i].translation_inv*p;
 		float t = box(e.xyz, boxes[i].dimension);
 		if(t < min_t){
-			p_res = e.xyz;
+			p_res = boxes[i].translation*p;
 			min_t = t;
 		}
 	}
@@ -145,5 +145,39 @@ void main()
 	vec3 p = imageLoad(position, coord).xyz;
 	vec3 c = imageLoad(color, coord).xyz;
 	
-	imageStore(composed, coord, vec4(1.0, 1.0, 1.0, 0.0));
+	
+	vec3 light_pos = vec3(0.0, 0.0, 10.0);
+	vec3 light_color = vec3(1.0, 1.0, 1.0);
+	
+	float len = length(p - light_pos);
+	vec3 light_dir = (p-light_pos)/len;
+	float diff = max(dot(n, light_dir), 0.0); 
+	vec3 diffuse = diff * light_color;
+	
+	vec3 result = diffuse * c;
+	
+	float t_max = 100.0;
+	float t = 0.0;
+	
+	imageStore(composed, coord, vec4(result, 0.0));;
+	
+	distance_result d_res; 
+	for(int i = 0; i < 32; i++)
+	{
+		d_res = distance(view_inv*vec4(-light_dir*t, 1.0), t_max);
+		if(d_res.min < 0.01)
+		{
+			imageStore(composed, coord, vec4(0.0));;
+			return;
+		}
+		t = t + d_res.min;
+	}
+	
+	if(t > len)
+	{
+		imageStore(composed, coord, vec4(result, 0.0));;
+		return;
+	}
+	
+	//imageStore(composed, coord, vec4(0.0));;
 }

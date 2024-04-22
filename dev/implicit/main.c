@@ -341,7 +341,7 @@ int main(int args, char *argv[])
 
 
 
-	const uint32_t sphere_count = 10;
+	const uint32_t sphere_count = 1;
 	struct light_game_implicit_sphere_instance sphere_instance[sphere_count];
 	
 	struct light_physic_particle *body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * sphere_count); 
@@ -351,7 +351,7 @@ int main(int args, char *argv[])
 			sphere_instance[i].radius[0] = 1.0f;
 
 			body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 10.0f},
+				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 5.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -359,7 +359,7 @@ int main(int args, char *argv[])
 		}
 	}
 	
-	const uint32_t cylinder_count = 5;
+	const uint32_t cylinder_count = 1;
 	struct light_game_implicit_cylinder_instance cylinder_instance[cylinder_count];
 	struct light_physic_particle *cylinder_body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * cylinder_count); 
 
@@ -370,7 +370,7 @@ int main(int args, char *argv[])
 			cylinder_instance[i].height = 1.0f;
 
 			cylinder_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = 2.0f*i, .z = 7.0f},
+				.position = (struct vec3){.x = 4.0f, .y = 2.0f*i, .z = 5.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -379,7 +379,7 @@ int main(int args, char *argv[])
 	}
 
 
-	const uint32_t box_count = 5;
+	const uint32_t box_count = 1;
 	struct light_game_implicit_box_instance box_instance[box_count];
 	struct light_physic_particle *box_body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * box_count); 
 
@@ -389,7 +389,7 @@ int main(int args, char *argv[])
 			box_instance[i].dimension = (struct vec3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 			box_body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 4.0f},
+				.position = (struct vec3){.x = -4.0f, .y = -2.0f*i, .z = 5.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -411,19 +411,19 @@ int main(int args, char *argv[])
 	GLuint sphere_buffer;
 	glGenBuffers(1, &sphere_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, sphere_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(sphere_instance), sphere_instance, GL_STREAM_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(sphere_instance), sphere_instance, GL_STATIC_DRAW);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	GLuint cylinder_buffer;
 	glGenBuffers(1, &cylinder_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinder_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(cylinder_instance), cylinder_instance, GL_STREAM_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(cylinder_instance), cylinder_instance, GL_STATIC_DRAW);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	GLuint box_buffer;
 	glGenBuffers(1, &box_buffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, box_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(box_instance), box_instance, GL_STREAM_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(box_instance), box_instance, GL_STATIC_DRAW);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	while(!light_platform_exit())
