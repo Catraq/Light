@@ -25,13 +25,12 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/math/mat4x4.c"
 	"${PROJECT_SOURCE_DIR}/src/math/vec.c"
 	"${PROJECT_SOURCE_DIR}/src/math/quaternion.c"
+	"${PROJECT_SOURCE_DIR}/src/scene.c"
 	"${PROJECT_SOURCE_DIR}/src/camera.c"
+	"${PROJECT_SOURCE_DIR}/src/frame.c"
+	"${PROJECT_SOURCE_DIR}/src/misc/file.c"
 	"${PROJECT_SOURCE_DIR}/src/camera_input.c"
-	"${PROJECT_SOURCE_DIR}/src/vertex_buffer.c"
-	"${PROJECT_SOURCE_DIR}/src/vertex_instance.c"
-	"${PROJECT_SOURCE_DIR}/src/vertex_buffer_model.c"
 	"${PROJECT_SOURCE_DIR}/src/framebuffer.c"
-	"${PROJECT_SOURCE_DIR}/src/model/raw_model.c"
 	"${PROJECT_SOURCE_DIR}/src/platform.c"
 
 )

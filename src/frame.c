@@ -1,15 +1,5 @@
-#include "math/vec.h"
-#include "platform.h"
+#include "frame.h"
 
-struct light_frame_info
-{
-	struct vec2 delta;
-	struct vec2 mouse;
-
-	uint32_t resize;
-	uint32_t width;
-	uint32_t height;
-};
 
 struct light_frame_info light_frame_info_update(struct light_frame_info *prev)
 {

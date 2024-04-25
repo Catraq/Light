@@ -1,19 +1,24 @@
 #version 430 core
 
+
 layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
 
 struct sphere_instance
 {
 	mat4 translation;
 	mat4 translation_inv;
-	float radius[4];
+	vec3 color;
+	float radius;
 };
+
 
 struct cylinder_instance
 {
 	mat4 translation;
 
 	mat4 translation_inv;
+
+	vec3 color;
 
 	/* radius of each cylinder  */
 	float radius; 
@@ -22,31 +27,33 @@ struct cylinder_instance
 	float height;
 	
 	/* Required padding */
-	float dummy[2];
+	float dummy[3];
 };
 
-/*
- * mirrored in gpu. have to correspond with shader input. 
- * adjust vertex attribute location if changed. 
- */
+
 struct box_instance
 {
 	mat4 translation;
 	
 	mat4 translation_inv;
+	
+	vec3 color; 
+	
+	float padding1;
 
 	/* box dimension */	
 	vec3 dimension;
 
-	float padding[1];
+	float padding2;
 };
 
 
 layout(rgba32f, binding=0) uniform restrict image2D color;
 layout(rgba32f, binding=1) uniform restrict image2D position;
 layout(rgba32f, binding=2) uniform restrict image2D normal;
+layout(rgba32f, binding=4) uniform restrict image2D buffer_t;
 
-layout(binding=0, std430) readonly buffer sphere_ssbo
+layout(binding=0, std430) readonly restrict buffer sphere_ssbo
 {
 	sphere_instance spheres[];
 };
@@ -93,19 +100,22 @@ struct distance_result
 {
 	vec4 p;
 	float min;
+	vec3 color;
 };
 
 distance_result distance(vec4 p, float t_max)
 {
 	
 	vec4 p_res;
+	vec3 color;
 	float min_t = t_max;
 	
 	for(int i = 0; i < spheres.length(); i++)
 	{
 		vec4 e = spheres[i].translation_inv*p;
-		float t = sphere(e.xyz, spheres[i].radius[0]);
+		float t = sphere(e.xyz, spheres[i].radius);
 		if(t < min_t){
+			color = spheres[i].color;
 			p_res = spheres[i].translation*p;
 			min_t = t;
 		}
@@ -117,6 +127,7 @@ distance_result distance(vec4 p, float t_max)
 		vec4 e = cylinders[i].translation_inv*p;
 		float t = cylinder(e.xyz, cylinders[i].radius, cylinders[i].height);
 		if(t < min_t){
+			color = cylinders[i].color;
 			p_res = cylinders[i].translation*p;
 			min_t = t;
 		}
@@ -128,6 +139,7 @@ distance_result distance(vec4 p, float t_max)
 		vec4 e = boxes[i].translation_inv*p;
 		float t = box(e.xyz, boxes[i].dimension);
 		if(t < min_t){
+			color = boxes[i].color;
 			p_res = boxes[i].translation*p;
 			min_t = t;
 		}
@@ -136,6 +148,7 @@ distance_result distance(vec4 p, float t_max)
 	distance_result result;
 	result.p = p_res;
 	result.min = min_t;
+	result.color = color;
 	return result;
 	
 }
@@ -153,7 +166,7 @@ void main()
 	imageStore(position, coord, vec4(0.0, 0.0, 0.0, 0.0));
 			
 	float t_max = 100.0;
-	float t = 0.0;
+	float t = imageLoad(buffer_t, coord/4).x;
 	
 	distance_result d_res; 
 	for(int i = 0; i < 32; i++)
@@ -181,10 +194,8 @@ void main()
 		//n = (view_inv*vec4(n, 1.0)).xyz;	
 		n = normalize(-n);	
 		
-		imageStore(color, coord, vec4(1.0, 0.0, 0.0, 1.0));
+		imageStore(color, coord, vec4(d_res.color, 1.0));
 		imageStore(position, coord, vec4(p.xyz, 0.0));
 		imageStore(normal, coord, vec4(n, 0.0));
 	}
-	
-		
 }

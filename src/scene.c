@@ -1,6 +1,6 @@
+#include "scene.h"
 
-
-void light_scene_view_initialize(struct light_camera_view_state *view_state, GLuint buffer_base_index, uint32_t width, uint32_t height)
+static void light_scene_view_initialize(struct light_camera_view_state *view_state, GLuint buffer_base_index, uint32_t width, uint32_t height)
 {
 
 	light_camera_initialize(view_state, buffer_base_index);
@@ -17,29 +17,51 @@ void light_scene_view_initialize(struct light_camera_view_state *view_state, GLu
 }
 
 
-struct light_scene_instance_build
+
+
+static int light_scene_buffer_initialize(struct light_scene_instance_buffer *instance_buffer, struct light_scene_instance_build *instance_build)
 {
-	uint32_t sphere_count;
+	glGenBuffers(1, &instance_buffer->sphere_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, instance_buffer->sphere_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * instance_build->sphere_count, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-	uint32_t cylinder_count;
+	glGenBuffers(1, &instance_buffer->cylinder_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, instance_buffer->cylinder_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * instance_build->cylinder_count, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-	uint32_t box_count;
-};
+	glGenBuffers(1, &instance_buffer->box_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, instance_buffer->box_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_box_instance) * instance_build->box_count, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-struct light_scene_instance 
+	glGenBuffers(1, &instance_buffer->light_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, instance_buffer->light_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_light_light_instance) * instance_build->light_count, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	
+	return 0;
+}
+
+void light_scene_deinitialize(struct light_scene_instance *instance)
 {
-	struct light_framebuffer framebuffer;
+	glDeleteBuffers(1, &instance->instance_buffer.sphere_buffer);
+	glDeleteBuffers(1, &instance->instance_buffer.cylinder_buffer);
+	glDeleteBuffers(1, &instance->instance_buffer.box_buffer);
+	glDeleteBuffers(1, &instance->instance_buffer.light_buffer);
+	
+	
+	light_framebuffer_deinitialize(&instance->framebuffer);
 
-	struct light_frame_info frame_info;
+}
 
-	struct light_camera_view_state view_state;
 
-	struct light_camera_update_state update_state;
-};
-
-int light_scene_initialize(struct light_scene_instance *instance)
+int light_scene_initialize(struct light_scene_instance *instance, struct light_scene_instance_build instance_build)
 {
 	int result = 0;
+
+	instance->instance_build = instance_build;
 
 	/* Platform Joystick initialization */
 	result = light_camera_input_initialize(&instance->update_state);
@@ -58,17 +80,46 @@ int light_scene_initialize(struct light_scene_instance *instance)
 	/* Initialize framebuffer */
 	uint32_t frame_width = 512, frame_height = 512;
 	light_framebuffer_initialize(&instance->framebuffer, frame_width, frame_height);
-	
-	return 0;
+
+	return light_scene_buffer_initialize(&instance->instance_buffer, &instance->instance_build);
+}
+void light_scene_buffer_commit_sphere(struct light_scene_instance *scene, struct light_scene_implicit_sphere_instance *sphere, uint32_t sphere_count, uint32_t sphere_offset)
+{
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, scene->instance_buffer.sphere_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * sphere_offset, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sphere);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
-int light_scene_bind(struct light_scene_instance *instance, GLint program)
+void light_scene_buffer_commit_cylinder(struct light_scene_instance *scene, struct light_scene_implicit_cylinder_instance *cylinder, uint32_t cylinder_count, uint32_t cylinder_offset)
+{
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, scene->instance_buffer.cylinder_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_offset, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, cylinder);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void light_scene_buffer_commit_box(struct light_scene_instance *scene, struct light_scene_implicit_box_instance *box, uint32_t box_count, uint32_t box_offset)
+{
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, scene->instance_buffer.box_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_implicit_box_instance) * box_offset, sizeof(struct light_scene_implicit_box_instance) * box_count, box);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+	
+void light_scene_buffer_commit_light(struct light_scene_instance *scene, struct light_scene_light_light_instance *light, uint32_t light_count, uint32_t light_offset)
+{
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, scene->instance_buffer.light_buffer);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, sizeof(struct light_scene_light_light_instance) * light_offset, sizeof(struct light_scene_light_light_instance) * light_count, light);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+
+int light_scene_bind_program(struct light_scene_instance *instance, GLint program)
 {
 	
 	return light_camera_buffer_bind(&instance->view_state, program);
 }
 
-int light_scene_update(struct light_scene_instance *instance, uint32_t width, uint32_t height, const float deltatime)
+int light_scene_bind(struct light_scene_instance *instance, uint32_t width, uint32_t height, const float deltatime)
 {	
 	struct light_frame_info frame_result = light_frame_info_update(&instance->frame_info);
 	struct vec2 delta_mouse = light_frame_info_mouse_delta(&frame_result, &instance->frame_info);
@@ -86,6 +137,18 @@ int light_scene_update(struct light_scene_instance *instance, uint32_t width, ui
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
+	glBindImageTexture(0, instance->framebuffer.color_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(1, instance->framebuffer.position_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(2, instance->framebuffer.normal_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(3, instance->framebuffer.composed_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,instance->instance_buffer.sphere_buffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,instance->instance_buffer.cylinder_buffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,instance->instance_buffer.box_buffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,instance->instance_buffer.light_buffer);
+
+
 	return 0;
 }
 
