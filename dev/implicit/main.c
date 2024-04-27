@@ -183,7 +183,6 @@ void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width/4, height/4, 0, GL_RED, GL_FLOAT, NULL);
 	glBindImageTexture(4, instance->prepass_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
 
-
 	glUseProgram(instance->prepass_compute_program);
 	glDispatchCompute(width/4, height/4, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -192,6 +191,7 @@ void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t 
 	glUseProgram(instance->compute_program);
 	glDispatchCompute(width, height, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
 
 }
 
@@ -272,7 +272,7 @@ int main(int args, char *argv[])
 	}
 	
 	struct light_scene_instance_build scene_instance_build = {
-		.sphere_count 	= 1,
+		.sphere_count 	= 2,
 		.box_count 	= 1,
 		.cylinder_count = 1,
 		.light_count 	= 3,
@@ -304,7 +304,7 @@ int main(int args, char *argv[])
 
 
 
-	const uint32_t sphere_count = 1;
+	const uint32_t sphere_count = 2;
 	struct light_scene_implicit_sphere_instance sphere_instance[sphere_count];
 	
 	struct light_physic_particle *body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * sphere_count); 
@@ -315,7 +315,7 @@ int main(int args, char *argv[])
 			sphere_instance[i].color = (struct vec3){.x = 0.0f, .y = 1.0f, .z = 0.0f};
 
 			body[i] = (struct light_physic_particle){
-				.position = (struct vec3){.x = 1.0f*i, .y = -2.0f*i, .z = 5.0f},
+				.position = (struct vec3){.x = 0.0f, .y = -1.0*i, .z = 3.0f},
 				.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
 				.mass = 1.0f, 
 				//.radius = 1.0f,
@@ -418,8 +418,52 @@ int main(int args, char *argv[])
 	light_scene_buffer_commit_box(&scene, box_instance, box_count, 0);
 	light_scene_buffer_commit_light(&scene, light_instance, light_count, 0);
 
-
 	
+
+	struct light_scene_implcit_object_instance object_instance[1];
+	struct light_scene_implicit_object_node object_node[2];
+
+
+	{
+		struct vec3 p = {.x = 0.0, .y = 1.0, .z = 0};
+		object_node[0].translation = m4x4trs(p);
+		object_node[0].translation_inv = m4x4inv(&object_node[0].translation, &result); 
+		object_node[0].index_type = LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION;
+		object_node[0].index_left = 0;
+		object_node[0].index_right= 0xFFFFFFFF;
+	}
+
+	{
+		struct vec3 p = {.x = 0.0, .y = -1.0, .z = 0};
+		object_node[1].translation = m4x4trs(p);
+		object_node[1].translation_inv = m4x4inv(&object_node[1].translation, &result); 
+		object_node[1].index_type = LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION;
+		object_node[1].index_left = 1;
+		object_node[1].index_right= 0xFFFFFFFF;
+	}
+
+
+	{
+		struct vec3 p = {.x = 0.0, .y = 0.0, .z = 10};
+		object_instance[0].translation = m4x4trs(p);
+		object_instance[0].translation_inv = m4x4inv(&object_instance[0].translation, &result); 
+		object_instance[0].index_type = LIGHT_SCENE_IMPLICIT_NODE_NODE_UNION;
+		object_instance[0].index_left = 0;
+		object_instance[0].index_right = 1;
+		object_instance[0].levels = 1;
+	}
+
+	GLuint object_buffer;
+	glGenBuffers(1, &object_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, object_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(object_instance), object_instance, GL_STATIC_DRAW);
+	
+	GLuint object_node_buffer;
+	glGenBuffers(1, &object_node_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, object_node_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(object_node), object_node, GL_STATIC_DRAW);
+	
+
 	while(!light_platform_exit())
     	{
 		struct timeval fps_time_curr_tmp;
@@ -454,19 +498,21 @@ int main(int args, char *argv[])
 	
 		
 		/* copy the physic simulation into the rendering buffer */
+		
 		uint32_t width, height;
-		light_platform_resolution(&width, &height);
-
-		width = 512;
-		height = 512;
-
+		width = 256; height = 256;
 		light_scene_bind(&scene, width, height, deltatime);
 		
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, object_buffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, object_node_buffer);
+
 		light_implicit_dispatch(&implicit_instance, width, height);
 
 		glUseProgram(_light_instance.compute_program);
 		glDispatchCompute(width, height, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		light_platform_resolution(&width, &height);
 
 		glViewport(0, 0, width/2, height/2);
 		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
@@ -480,7 +526,7 @@ int main(int args, char *argv[])
 		light_surface_render(&quad_surface, scene.framebuffer.normal_texture);
 
 		glViewport(width/2, height/2, width/2, height/2);
-		light_surface_render(&quad_surface, implicit_instance.prepass_texture);
+		light_surface_render(&quad_surface, scene.framebuffer.composed_texture);
 
 
 

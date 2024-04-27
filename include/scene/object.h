@@ -7,6 +7,60 @@
  * is used in the shaders. 
  */
 
+/* Note that the first object/node is for left 
+ * and secound for right 
+ */
+
+enum
+{
+	/* Used for ignoring index of object */
+	LIGHT_SCENE_IMPLCIT_OBJECT_NONE 		= 0xFFFFFFFF,
+	LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION 	= 0,
+	LIGHT_SCENE_IMPLICIT_OBJECT_NODE_UNION 		= 1,
+	LIGHT_SCENE_IMPLICIT_NODE_NODE_UNION 		= 2
+};
+
+struct light_scene_implcit_object_instance
+{
+	uint32_t levels;
+
+	/* 
+	 * What kind of operation that should be performed 
+	 * between the different nodes/objects 
+	 */	
+	uint32_t index_type;
+
+	/* Set the index of either the node or object. 
+	 * If the index is MAX_UINT32 then it is ignored 
+	 */
+	uint32_t index_left;
+	uint32_t index_right;
+
+
+	struct mat4x4 translation;
+	struct mat4x4 translation_inv;
+};
+
+struct light_scene_implicit_object_node
+{
+	uint32_t padding;
+	/* 
+	 * What kind of operation that should be performed 
+	 * between the different nodes/objects 
+	 */	
+	uint32_t index_type;
+
+	/* Set the index of either the node or object. 
+	 * If the index is MAX_UINT32 then it is ignored 
+	 */
+	uint32_t index_left;
+	uint32_t index_right;
+
+	struct mat4x4 translation;
+	struct mat4x4 translation_inv;
+
+};
+
 /*
  * mirrored in gpu. have to correspond with shader input. 
  * adjust vertex attribute location if changed. 

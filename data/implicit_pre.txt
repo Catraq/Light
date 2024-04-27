@@ -119,7 +119,6 @@ distance_result distance(vec4 p, float t_max)
 		}
 	}
 	
-	
 	for(int i = 0; i < cylinders.length(); i++)
 	{
 		vec4 e = cylinders[i].translation_inv*p;
@@ -142,7 +141,7 @@ distance_result distance(vec4 p, float t_max)
 			min_t = t;
 		}
 	}
-	
+
 	distance_result result;
 	result.p = p_res;
 	result.min = min_t;
@@ -162,7 +161,7 @@ void main()
 	float t = 0.0;
 	
 	distance_result d_res; 
-	for(int i = 0; i < 32; i++)
+	for(int i = 0; i < 128; i++)
 	{
 		d_res = distance(view_inv*vec4(ray*t, 1.0), t_max);
 		if(d_res.min < 0.01 || t > t_max )
