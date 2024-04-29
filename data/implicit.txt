@@ -37,7 +37,9 @@ struct box_instance
 
 
 
-#define	UNION 	0
+#define	UNION 		0
+#define INTERSECT 	1
+#define DIFFERENCE	2
 
 struct object_instance
 {
@@ -229,35 +231,32 @@ distance_result distance(vec4 p, float t_max)
 		
 		uint left = left_nodes[index];	
 		uint right = right_nodes[index];	
-
-
-		switch(nodes[left].index_type)
-		{
-			case UNION:
-			{
-				mat4 translation_inv = objects[i].translation_inv * nodes[left].translation_inv;
-				distance_result left_res = distance_object(translation_inv * p, t_max, nodes[left].object_index);
-				left_res.p = nodes[left].translation * left_res.p;
-				
-				left_result[index] = left_res;
-			}
-			break;
-		}
+		
 		
 
 
-		switch(nodes[right].index_type)
 		{
-			case UNION:
-			{
-				mat4 translation_inv = objects[i].translation_inv * nodes[right].translation_inv;
-				distance_result right_res = distance_object(translation_inv * p, t_max, nodes[right].object_index);
-				right_res.p = nodes[right].translation * right_res.p;
-				
-				right_result[index] = right_res;
-			}
-			break;
+			mat4 translation_inv = objects[i].translation_inv * nodes[left].translation_inv;
+			distance_result left_res = distance_object(translation_inv * p, t_max, nodes[left].object_index);
+			left_res.p = nodes[left].translation * left_res.p;
+			
+			left_result[index] = left_res;
 		}
+	
+	
+
+
+	
+		{
+			mat4 translation_inv = objects[i].translation_inv * nodes[right].translation_inv;
+			distance_result right_res = distance_object(translation_inv * p, t_max, nodes[right].object_index);
+			right_res.p = nodes[right].translation * right_res.p;
+			
+			right_result[index] = right_res;
+		}
+		
+		
+
 		
 
 		for(uint j = 2; j < objects[i].levels+1; j++)
@@ -279,6 +278,28 @@ distance_result distance(vec4 p, float t_max)
 					
 				}
 				break;
+				
+				case INTERSECT:
+				{
+					mat4 translation_inv = objects[i].translation_inv * nodes[left].translation_inv;
+					distance_result left_res = distance_object(translation_inv * p, t_max, nodes[left].object_index);
+					left_res.p = nodes[left].translation * left_res.p;
+					
+					left_result[index] = left_result[index+1].min < left_res.min ? left_res : left_result[index+1]; 
+					
+				}
+				
+				case DIFFERENCE:
+				{
+					mat4 translation_inv = objects[i].translation_inv * nodes[left].translation_inv;
+					distance_result left_res = distance_object(translation_inv * p, t_max, nodes[left].object_index);
+					left_res.p = nodes[left].translation * left_res.p;
+					
+					left_result[index] = left_result[index+1].min < -left_res.min ? left_res : left_result[index+1]; 
+					
+				}
+				
+				break;
 			}
 			
 
@@ -295,13 +316,47 @@ distance_result distance(vec4 p, float t_max)
 					
 				}
 				break;
+				
+				case INTERSECT:
+				{
+					mat4 translation_inv = objects[i].translation_inv * nodes[right].translation_inv;
+					distance_result right_res = distance_object(translation_inv  * p, t_max, nodes[right].object_index);
+					right_res.p = nodes[right].translation * right_res.p;
+					
+					right_result[index] = right_result[index+1].min < right_res.min ? right_res : right_result[index+1]; 
+					
+				}
+				break;
+				
+				case DIFFERENCE:
+				{
+					mat4 translation_inv = objects[i].translation_inv * nodes[right].translation_inv;
+					distance_result right_res = distance_object(translation_inv  * p, t_max, nodes[right].object_index);
+					right_res.p = nodes[right].translation * right_res.p;
+					
+					right_result[index] = right_result[index+1].min < -right_res.min ? right_res : right_result[index+1]; 
+					
+				}
+				break;
 			}
 			
 		}
-
-		distance_result res = left_result[0].min < right_result[0].min ? left_result[0] : right_result[0];
-		res.p = objects[i].translation * res.p;
 		
+		distance_result res;
+		switch(objects[i].index_type)
+		{
+			case UNION:
+				res = left_result[0].min < right_result[0].min ? left_result[0] : right_result[0];
+				break;
+			case INTERSECT:
+				res = left_result[0].min < right_result[0].min ? right_result[0] : left_result[0] ;
+				break;
+			case DIFFERENCE:
+				res = left_result[0].min < -right_result[0].min ? right_result[0] : left_result[0] ;
+				break;
+		}
+		
+		res.p = objects[i].translation * res.p;
 		result = res.min < result.min ? res : result;
 	} 
 	

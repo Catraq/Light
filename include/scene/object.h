@@ -14,6 +14,8 @@
 enum
 {
 	LIGHT_SCENE_IMPLICIT_UNION 	= 0,
+	LIGHT_SCENE_IMPLICIT_INTERSECT 	= 1,
+	LIGHT_SCENE_IMPLICIT_DIFFERENCE = 2
 };
 
 struct light_scene_implicit_object_instance

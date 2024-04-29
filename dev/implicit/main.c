@@ -121,8 +121,8 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 	
 	{
 		const char *compute_shader_filename = "../data/implicit.txt";
-		uint8_t compute_shader_source[8192];
-		size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 8192);
+		uint8_t compute_shader_source[2*8192];
+		size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 2*8192);
 		if(read == 0){
 			fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
 			return -1;
@@ -234,12 +234,12 @@ void light_implicit_commit_objects(struct light_implicit_instance *instance,
 
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->object_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_instance)*object_instance_count, object_instance);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_instance)*object_instance_count, sizeof(uint32_t), &object_instance_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_instance)*instance->instance_build.object_count, sizeof(uint32_t), &object_instance_count);
 
 
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->object_node_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_node)*object_node_count, object_node);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_node)*object_node_count, sizeof(uint32_t), &object_node_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_node)*instance->instance_build.object_node_count, sizeof(uint32_t), &object_node_count);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
@@ -248,7 +248,7 @@ void light_implicit_commit_sphere(struct light_implicit_instance *instance, stru
 {
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->sphere_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sphere);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sizeof(uint32_t),  &sphere_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * instance->instance_build.sphere_count, sizeof(uint32_t),  &sphere_count);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -256,7 +256,7 @@ void light_implicit_commit_cylinder(struct light_implicit_instance *instance, st
 {
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->cylinder_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, cylinder);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, sizeof(uint32_t), &cylinder_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * instance->instance_build.cylinder_count, sizeof(uint32_t), &cylinder_count);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -264,7 +264,7 @@ void light_implicit_commit_box(struct light_implicit_instance *instance, struct 
 {
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->box_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_box_instance) * box_count, box);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_box_instance) * box_count, sizeof(uint32_t), &box_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_box_instance) * instance->instance_build.box_count, sizeof(uint32_t), &box_count);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -273,7 +273,7 @@ void light_implicit_commit_light(struct light_implicit_instance *instance, struc
 {
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->light_buffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_light_light_instance) * light_count, light);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_light_light_instance) * light_count, sizeof(uint32_t),  &light_count);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_light_light_instance) * instance->instance_build.light_count, sizeof(uint32_t),  &light_count);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -382,13 +382,13 @@ int main(int args, char *argv[])
 	struct light_implicit_instance implicit_instance;
 	{
 		struct light_implicit_instance_build build = {
-			.object_count = 1,
-			.object_node_count = 4,
-			.object_node_max_level = 5,	
-			.sphere_count 	= 2,
-			.box_count 	= 1,
-			.cylinder_count = 1,
-			.light_count 	= 3,
+			.object_count = 10,
+			.object_node_count = 10,
+			.object_node_max_level = 10,	
+			.sphere_count 	= 10,
+			.box_count 	= 10,
+			.cylinder_count = 10,
+			.light_count 	= 10,
 		};
 
 		result = light_implicit_initialize(&scene, &implicit_instance, build);
@@ -499,10 +499,9 @@ int main(int args, char *argv[])
 	light_implicit_commit_box(&implicit_instance, box_instance, box_count);
 	light_implicit_commit_light(&implicit_instance, light_instance, light_count);
 
-	
 
-	struct light_scene_implicit_object_instance object_instance[1];
-	struct light_scene_implicit_object_node object_node[4];
+	struct light_scene_implicit_object_instance object_instance[1+1+1];
+	struct light_scene_implicit_object_node object_node[4+2+2];
 
 
 	{
@@ -532,6 +531,35 @@ int main(int args, char *argv[])
 		object_node[3].index_type = LIGHT_SCENE_IMPLICIT_UNION;
 		object_node[3].object_index = 1;
 
+
+
+
+		object_node[4].translation = m4x4trs(p1);
+		object_node[4].translation_inv = m4x4inv(&object_node[4].translation, &result); 
+		object_node[4].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[4].object_index = 2;
+
+		object_node[5].translation = m4x4trs(p2);
+		object_node[5].translation_inv = m4x4inv(&object_node[5].translation, &result); 
+		object_node[5].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[5].object_index = 3;
+
+
+
+		
+
+		struct vec3 c = {.x = 0.0, .y = 0.0, .z = 0};
+		object_node[6].translation = m4x4trs(c);
+		object_node[6].translation_inv = m4x4inv(&object_node[6].translation, &result); 
+		object_node[6].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[6].object_index = 0;
+
+		object_node[7].translation = m4x4trs(p4);
+		object_node[7].translation_inv = m4x4inv(&object_node[7].translation, &result); 
+		object_node[7].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[7].object_index = 3;
+
+
 	}
 
 
@@ -543,9 +571,27 @@ int main(int args, char *argv[])
 		object_instance[0].index_left = 0;
 		object_instance[0].index_right = 1;
 		object_instance[0].levels = 2;
+
+		struct vec3 p2 = {.x = -4.0, .y = 0.0, .z = 10};
+		object_instance[1].translation = m4x4trs(p2);
+		object_instance[1].translation_inv = m4x4inv(&object_instance[1].translation, &result); 
+		object_instance[1].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_instance[1].index_left = 4;
+		object_instance[1].index_right = 5;
+		object_instance[1].levels = 1;
+
+		struct vec3 p3 = {.x = 4.0, .y = 0.0, .z = 10};
+		object_instance[2].translation = m4x4trs(p3);
+		object_instance[2].translation_inv = m4x4inv(&object_instance[2].translation, &result); 
+		object_instance[2].index_type = LIGHT_SCENE_IMPLICIT_INTERSECT;
+		object_instance[2].index_left = 6;
+		object_instance[2].index_right = 7;
+		object_instance[2].levels = 1;
+
+
 	}
 
-	light_implicit_commit_objects(&implicit_instance, object_instance, 1, object_node, 4);
+	light_implicit_commit_objects(&implicit_instance, object_instance, 3, object_node, 8);
 
 	float t = 0.0;
 	while(!light_platform_exit())
@@ -574,15 +620,25 @@ int main(int args, char *argv[])
 			struct vec3 p = {.x = 0.0, .y = cosf(t), .z = 10};
 			object_instance[0].translation = m4x4trs(p);
 			object_instance[0].translation_inv = m4x4inv(&object_instance[0].translation, &result); 
+
+			struct vec3 p2 = {.x = -4.0, .y = cosf(t), .z = 10};
+			object_instance[1].translation = m4x4trs(p2);
+			object_instance[1].translation_inv = m4x4inv(&object_instance[1].translation, &result); 
+
+			struct vec3 p3 = {.x = 4.0, .y = cosf(t), .z = 10};
+			object_instance[2].translation = m4x4trs(p3);
+			object_instance[2].translation_inv = m4x4inv(&object_instance[2].translation, &result); 
+
+
 		}
 
-		light_implicit_commit_objects(&implicit_instance, object_instance, 1, object_node, 4);
+		light_implicit_commit_objects(&implicit_instance, object_instance, 3, object_node, 8);
 			
 		
 		/* copy the physic simulation into the rendering buffer */
 		
 		uint32_t width, height;
-		width = 512; height = 512;
+		width = 256; height = 256;
 		light_scene_bind(&scene, width, height, deltatime);
 #if 1	
 		glViewport(0, 0, width, height);
