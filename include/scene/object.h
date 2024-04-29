@@ -13,14 +13,10 @@
 
 enum
 {
-	/* Used for ignoring index of object */
-	LIGHT_SCENE_IMPLCIT_OBJECT_NONE 		= 0xFFFFFFFF,
-	LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION 	= 0,
-	LIGHT_SCENE_IMPLICIT_OBJECT_NODE_UNION 		= 1,
-	LIGHT_SCENE_IMPLICIT_NODE_NODE_UNION 		= 2
+	LIGHT_SCENE_IMPLICIT_UNION 	= 0,
 };
 
-struct light_scene_implcit_object_instance
+struct light_scene_implicit_object_instance
 {
 	uint32_t levels;
 
@@ -53,8 +49,8 @@ struct light_scene_implicit_object_node
 	/* Set the index of either the node or object. 
 	 * If the index is MAX_UINT32 then it is ignored 
 	 */
-	uint32_t index_left;
-	uint32_t index_right;
+	uint32_t object_index;
+	uint32_t node_index;
 
 	struct mat4x4 translation;
 	struct mat4x4 translation_inv;
@@ -67,10 +63,6 @@ struct light_scene_implicit_object_node
  */
 struct light_scene_implicit_sphere_instance
 {
-	struct mat4x4 translation;
-
-	struct mat4x4 translation_inv;
-
 	struct vec3 color;
 
 	float radius;
@@ -83,10 +75,6 @@ struct light_scene_implicit_sphere_instance
  */
 struct light_scene_implicit_cylinder_instance
 {
-	struct mat4x4 translation;
-
-	struct mat4x4 translation_inv;
-
 	struct vec3 color;
 
 	/* radius of each cylinder  */
@@ -105,10 +93,6 @@ struct light_scene_implicit_cylinder_instance
  */
 struct light_scene_implicit_box_instance
 {
-	struct mat4x4 translation;
-	
-	struct mat4x4 translation_inv;
-
 	struct vec3 color;
 
 	float padding1;

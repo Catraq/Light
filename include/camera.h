@@ -18,11 +18,10 @@ struct light_camera_view_state
 	struct vec3 rotation;
 
 	GLuint camera_buffer;
-	GLuint buffer_base_index;
 };
 
-void light_camera_initialize(struct light_camera_view_state *view_state, GLuint buffer_base_index);
-int light_camera_buffer_bind(struct light_camera_view_state *view_state, GLuint program);
+void light_camera_initialize(struct light_camera_view_state *view_state);
+int light_camera_buffer_bind(struct light_camera_view_state *view_state);
 void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32_t width, uint32_t height);
 
 #endif

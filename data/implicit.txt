@@ -1,12 +1,8 @@
-#version 430 core
-
 
 layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
 
 struct sphere_instance
 {
-	mat4 translation;
-	mat4 translation_inv;
 	vec3 color;
 	float radius;
 };
@@ -14,10 +10,6 @@ struct sphere_instance
 
 struct cylinder_instance
 {
-	mat4 translation;
-
-	mat4 translation_inv;
-
 	vec3 color;
 
 	/* radius of each cylinder  */
@@ -32,11 +24,7 @@ struct cylinder_instance
 
 
 struct box_instance
-{
-	mat4 translation;
-	
-	mat4 translation_inv;
-	
+{	
 	vec3 color; 
 	
 	float padding1;
@@ -49,11 +37,10 @@ struct box_instance
 
 
 
-#define OBJECT_NONE 0xFFFFFFFF
 
-#define	OBJECT_OBJECT_UNION 	0
-#define	OBJECT_NODE_UNION 	1
-#define	NODE_NODE_UNION 	2
+#define	UNION 	0
+
+
 
 struct object_instance
 {
@@ -71,8 +58,8 @@ struct object_node
 {
 	uint padding;
 	uint index_type;
-	uint index_left;
-	uint index_right;
+	uint object_index;
+	uint node_index;
 	
 	mat4 translation;
 	mat4 translation_inv;
@@ -86,39 +73,49 @@ layout(rgba32f, binding=1) uniform restrict image2D position;
 layout(rgba32f, binding=2) uniform restrict image2D normal;
 layout(r32f, binding=4) uniform restrict image2D buffer_t;
 
-layout(binding=0, std430) readonly restrict buffer sphere_ssbo
+layout(binding=0) uniform sphere_ubo
 {
-	sphere_instance spheres[];
+	sphere_instance spheres[SPHERE_COUNT];
+	uint		spheres_count;
+	uint		spheres_dummy[3];		
 };
 
 
-layout(binding=1, std430) readonly restrict buffer cylinder_ssbo
+layout(binding=1) uniform cylinder_ubo
 {
-	cylinder_instance cylinders[];
+	cylinder_instance 	cylinders[CYLINDER_COUNT];
+	uint			cylinders_count;
+	uint			cylinders_dummy[3];
 };
 
 
-layout(binding=2, std430) readonly restrict buffer box_ssbo
+layout(binding=2) uniform box_ubo
 {
-	box_instance boxes[];
+	box_instance 	boxes[BOX_COUNT];
+	uint		boxes_count;
+	uint		boxes_dummy[3];
 };
 
 
-layout(binding=4, std430) readonly restrict buffer instances_ssbo
+layout(binding=4) uniform objects_ubo
 {
-	object_instance instances[];
+	object_instance objects[OBJECT_COUNT];
+	uint		objects_count;
+	uint		objects_ssbo_dummy[3];
 };
 
 
-layout(binding=5, std430) readonly restrict buffer nodes_ssbo
+layout(binding=5) uniform nodes_ubo
 {
-	object_node nodes[];
+	object_node 	nodes[OBJECT_NODE_COUNT];
+	uint 		nodes_count; 
+	uint		nodes_ubo_dummy[3];
 };
 
 
 
 
-uniform scene
+layout(binding=6) uniform scene_ubo
 {
 	mat4 view;
 	mat4 view_inv;
@@ -156,34 +153,33 @@ distance_result distance_object(vec4 p, float t_max, uint index)
 	vec3 color = vec3(0.0);
 	float min_t = t_max;
 	
-	if(index < spheres.length())
+	if(index < spheres_count)
 	{
-		vec4 e = spheres[index].translation_inv*p;
-		float t = sphere(e.xyz, spheres[index].radius);
+		float t = sphere(p.xyz, spheres[index].radius);
 		color = spheres[index].color;
-		p_res = spheres[index].translation*p;
+		p_res = p;
 		min_t = t;
 			
 	}
-	else if(index - spheres.length() < cylinders.length())
+	else if(index - spheres_count < cylinders_count)
 	{
-		uint i = index - spheres.length();
-		vec4 e = cylinders[i].translation_inv*p;
-		float t = cylinder(e.xyz, cylinders[i].radius, cylinders[i].height);
+		uint i = index - spheres_count;
+		vec4 e = p;
+		float t = cylinder(p.xyz, cylinders[i].radius, cylinders[i].height);
 	
 		color = cylinders[i].color;
-		p_res = cylinders[i].translation*p;
+		p_res = p;
 		min_t = t;
 		
 	}
-	else if(index - spheres.length() - cylinders.length() < boxes.length())
+	else if(index - spheres_count - cylinders_count < boxes_count)
 	{
-		uint i = index - spheres.length() - cylinders.length();
-		vec4 e = boxes[i].translation_inv*p;
-		float t = box(e.xyz, boxes[i].dimension);
+		uint i = index - spheres_count - cylinders_count;
+		vec4 e = p;
+		float t = box(p.xyz, boxes[i].dimension);
 	
 		color = boxes[i].color;
-		p_res = boxes[i].translation*p;
+		p_res = p;
 		min_t = t;
 		
 	} 
@@ -204,83 +200,106 @@ distance_result distance(vec4 p, float t_max)
 	
 	distance_result result_object_none;
 	result_object_none.min = t_max;
+	result_object_none.color = vec3(1.0);
 	
 	
-	for(int i = 0; i < instances.length(); i++)
+	for(int i = 0; i < objects_count; i++)
 	{
-		uint levels = instances[i].levels;
+		uint left_nodes[OBJECT_NODE_STACK];
+		uint right_nodes[OBJECT_NODE_STACK];
 		
-		uint node_count_sum = 0;
+		left_nodes[0] = objects[i].index_left;	
+		right_nodes[0] = objects[i].index_right;	
 		
-		const uint node_total_count = 2;
-		distance_result node_result[node_total_count];
+		mat4 left_translation_inv = objects[i].translation_inv * nodes[objects[i].index_left].translation_inv;
+		mat4 right_translation_inv = objects[i].translation_inv * nodes[objects[i].index_right].translation_inv;
 		
-		
-		for(uint i = 0; i < levels; i++)
+		/* Write node index to buffer */
+		for(uint i = 1; i < objects[i].levels; i++)
 		{
-			uint node_count = 1;
-			for(uint j = 0; j < levels - i; j++)
-			{
-				node_count = node_count*2;	
-			}
-			node_count_sum += node_count;
+			left_nodes[i] = nodes[left_nodes[i-1]].node_index;
+			right_nodes[i] = nodes[right_nodes[i-1]].node_index;
+			
+			left_translation_inv = left_translation_inv * nodes[left_nodes[i]].translation_inv;
+			right_translation_inv = right_translation_inv * nodes[right_nodes[i]].translation_inv;
+		}
+		
+		distance_result left_result[OBJECT_NODE_STACK];
+		distance_result right_result[OBJECT_NODE_STACK];
 
-			for(uint j = 0; j < node_count; j++)
-			{
-				uint index = node_total_count - node_count_sum + j;
-				uint type = nodes[index].index_type;
-				
-				switch(type)
-				{
-					case OBJECT_OBJECT_UNION:
-						{
-							distance_result left = nodes[index].index_left == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, nodes[index].index_left);
-							distance_result right = nodes[index].index_right == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, nodes[index].index_right);
-							node_result[index] = left.min < right.min ? left : right;
-						}
-					break;	
-					case OBJECT_NODE_UNION:
-						{
-							distance_result left = nodes[index].index_left == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, nodes[index].index_left);
-							node_result[index] = left.min < node_result[nodes[index].index_right].min ? left : node_result[nodes[index].index_right];
-						}
-					break;	
-					case NODE_NODE_UNION:
-						{
-							node_result[index] = node_result[nodes[index].index_left].min < node_result[nodes[index].index_right].min ? node_result[nodes[index].index_left] : node_result[nodes[index].index_right];
-						}
-					break;	
-				}
-			}
-		}
+		/* Access the nodes backwards */
+		uint index = objects[i].levels-1;
 		
-		
-		
-		uint type = instances[i].index_type;
-		distance_result root_result;
-		switch(type)
+		uint left = left_nodes[index];	
+		uint right = right_nodes[index];	
+
+		left_result[index] = result_object_none;
+		switch(nodes[left].index_type)
 		{
-			case OBJECT_OBJECT_UNION:
-				{
-					distance_result left = instances[i].index_left == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, instances[i].index_left);
-					distance_result right = instances[i].index_right == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, instances[i].index_right);
-					root_result = left.min < right.min ? left : right;
-				}
-			break;	
-			case OBJECT_NODE_UNION:
-				{
-					distance_result left = instances[i].index_left == OBJECT_NONE ? result_object_none : distance_object(instances[i].translation_inv * p, t_max, instances[i].index_left);
-					root_result = left.min < node_result[instances[i].index_right].min ? left : node_result[instances[i].index_right];
-				}
-			break;	
-			case NODE_NODE_UNION:
-				{
-					root_result = node_result[instances[i].index_left].min < node_result[instances[i].index_right].min ? node_result[instances[i].index_left] : node_result[instances[i].index_right];
-				}
-			break;	
+			case UNION:
+			{
+				distance_result left_res = distance_object(left_translation_inv * p, t_max, nodes[left].object_index);
+				left_result[index] = left_res;
+			}
+			break;
 		}
-		root_result.p = instances[i].translation * root_result.p;  
-		result = root_result.min < result.min ?  root_result : result;
+		
+		left_result[index].p = nodes[left].translation * left_result[index].p; 
+		left_translation_inv = left_translation_inv * nodes[left].translation;
+
+		right_result[index] = result_object_none;
+		switch(nodes[left].index_type)
+		{
+			case UNION:
+			{
+				distance_result right_res = distance_object(right_translation_inv * p, t_max, nodes[right].object_index);
+				right_result[index] = right_res;
+			}
+			break;
+		}
+		right_result[index].p = nodes[right].translation * right_result[index].p; 
+		right_translation_inv = right_translation_inv * nodes[right].translation;
+
+
+		for(uint i = 2; i < objects[i].levels+1; i++)
+		{
+			uint index = objects[i].levels - i;
+			uint left = left_nodes[index];	
+			uint right = right_nodes[index];	
+			
+			left_result[index] = result_object_none;
+			switch(nodes[left].index_type)
+			{
+				case UNION:
+				{
+					distance_result left_res = distance_object(left_translation_inv * p, t_max, nodes[left].object_index);
+					left_result[index] = left_result[index+1].min < left_res.min ? left_result[index+1] : left_res; 
+				}
+				break;
+			}
+			left_result[index].p = nodes[left].translation * left_result[index].p; 
+			left_translation_inv = left_translation_inv * nodes[left].translation;
+
+
+			right_result[index] = result_object_none;
+			switch(nodes[left].index_type)
+			{
+				case UNION:
+				{
+					distance_result right_res = distance_object(right_translation_inv * p, t_max, nodes[right].object_index);
+					right_result[index] = right_result[index+1].min < right_res.min ? right_result[index+1] : right_res; 
+				}
+				break;
+			}
+			right_result[index].p = nodes[right].translation * right_result[index].p; 
+			right_translation_inv = right_translation_inv * nodes[right].translation;
+			
+		}
+
+		distance_result res = left_result[0].min < right_result[0].min ? left_result[0] : right_result[0];
+		res.p = objects[i].translation * res.p;
+		
+		result = res.min < result.min ? res : result;
 	} 
 	
 	

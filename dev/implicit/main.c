@@ -27,8 +27,43 @@
 #include "physic/physic.c"
 #include "physic/physic_rope.c"
 
+void glError(const char *msg)
+{
+	GLenum error_code = GL_NO_ERROR;
+	while((error_code = glGetError()) != GL_NO_ERROR)
+	{
+		fprintf(stderr, msg);
+		switch(error_code)
+		{
+			case GL_INVALID_ENUM:
+				fprintf(stderr, "GL_INVALID_ENUM\n");	
+				break;
+			case GL_INVALID_VALUE:
+				fprintf(stderr, "GL_INVALID_VALUE\n");	
+				break;
+			case GL_INVALID_OPERATION:
+				fprintf(stderr, "GL_INVALID_OPERATION\n");	
+				break;
+			case GL_INVALID_FRAMEBUFFER_OPERATION:
+				fprintf(stderr, "GL_INVALID_FRAMEBUFFER_OPERATION\n");	
+				break;
+			case GL_OUT_OF_MEMORY:
+				fprintf(stderr, "GL_OUT_OF_MEMORY\n");	
+				break;
+			case GL_STACK_UNDERFLOW:
+				fprintf(stderr, "GL_STACK_UNDERFLOW\n");	
+				break;
+			case GL_STACK_OVERFLOW:
+				fprintf(stderr, "GL_STACK_OVERFLOW\n");	
+				break;
+		
+		}	
+	}
 
-GLuint light_shader_compute_create(const GLchar **source, GLint *length)
+}
+
+
+GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_t count)
 {
 	GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
 	if(compute_shader == 0)
@@ -37,7 +72,7 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length)
 		return -1;
 	}
 
-	glShaderSource(compute_shader, 1, source , length);
+	glShaderSource(compute_shader, count, source , length);
 	glCompileShader(compute_shader);
 	
 	GLint compiled = GL_FALSE;
@@ -79,19 +114,48 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length)
 	return compute_program;
 }
 
+struct light_implicit_instance_build
+{
+	uint32_t object_count;
 
+	uint32_t object_node_count; 
+
+	uint32_t object_node_max_level;
+
+	uint32_t sphere_count;
+
+	uint32_t cylinder_count;
+
+	uint32_t box_count;
+
+	uint32_t light_count;
+
+};
 
 struct light_implicit_instance
 {
+	struct light_implicit_instance_build instance_build;
+
 	GLuint compute_program;
 	
 	GLuint prepass_compute_program;	
 	GLuint prepass_texture;
+	
+	GLuint object_buffer;
+	GLuint object_node_buffer;
+	GLuint sphere_buffer;
+	GLuint cylinder_buffer;
+	GLuint box_buffer;
+	GLuint light_buffer;
+
 };
 
 
-int light_implicit_initialize(struct light_scene_instance *scene, struct light_implicit_instance *instance)
+int light_implicit_initialize(struct light_scene_instance *scene, struct light_implicit_instance *instance, struct light_implicit_instance_build instance_build)
 {
+	instance->instance_build = instance_build;
+
+	
 	{
 		const char *compute_shader_filename = "../data/implicit.txt";
 		uint8_t compute_shader_source[8192];
@@ -100,27 +164,46 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
 			return -1;
 		}
+	
+		uint32_t object_node_stack_size = 0;	
+		uint32_t object_node_level_count = 1;
+		for(uint32_t i = 0; i < instance_build.object_node_max_level; i++)
+		{
+			object_node_level_count = object_node_level_count*2;
+			object_node_stack_size += object_node_level_count;
+		}
 
-		const GLchar *source = compute_shader_source;
-		GLint length = read;
+		uint8_t compute_shader_source_header[512];
+		uint32_t gen = snprintf(compute_shader_source_header, 255, 
+			"#version 430 core \n" 
+			"#define OBJECT_NODE_STACK %u \n"
+			"#define OBJECT_NODE_COUNT %u \n"
+			"#define OBJECT_COUNT %u \n"
+			"#define SPHERE_COUNT %u \n"
+			"#define BOX_COUNT %u \n"
+			"#define CYLINDER_COUNT %u \n",
+		       	object_node_stack_size,
+			instance_build.object_node_count,
+			instance_build.object_count,
+			instance_build.sphere_count,
+			instance_build.box_count,
+			instance_build.cylinder_count
+		); 
 
-		GLuint compute_program = light_shader_compute_create(&source, &length);
+		const GLchar *source[] =
+		{
+			compute_shader_source_header,
+			compute_shader_source,
+		};
+		GLint length[] = {gen, read};
+
+		GLuint compute_program = light_shader_compute_create(source, length, 2);
 		if(compute_program == 0)
 		{
 			fprintf(stderr, "light_shader_compute_create() failed.");
 			return -1;
 		}
 
-		int result = light_scene_bind_program(scene, compute_program);
-		if(result < 0)
-		{
-			glDeleteProgram(compute_program);
-
-			fprintf(stderr, "light_scene_bind() failed. \n");	
-			return -1;
-		}
-		
-		
 		instance->compute_program = compute_program;
 	}
 	
@@ -139,7 +222,7 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 		const GLchar *source = compute_shader_source;
 		GLint length = read;
 
-		GLuint compute_program = light_shader_compute_create(&source, &length);
+		GLuint compute_program = light_shader_compute_create(&source, &length, 1);
 		if(compute_program == 0)
 		{
 
@@ -149,16 +232,6 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			return -1;
 		}
 
-		int result = light_scene_bind_program(scene, compute_program);
-		if(result < 0)
-		{
-
-			glDeleteProgram(instance->compute_program);
-			glDeleteProgram(compute_program);
-
-			fprintf(stderr, "light_scene_bind() failed. \n");	
-			return -1;
-		}
 		
 		
 		instance->prepass_compute_program = compute_program;
@@ -171,10 +244,110 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	instance->prepass_texture = prepass_texture;
+	uint32_t sphere_buffer_size = sizeof(struct light_scene_implicit_sphere_instance) * instance_build.sphere_count + 4*sizeof(uint32_t);
+	GLuint sphere_buffer;
+	glGenBuffers(1, &sphere_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, sphere_buffer);
+	glBufferData(GL_UNIFORM_BUFFER,  sphere_buffer_size, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	uint32_t cylinder_buffer_size = sizeof(struct light_scene_implicit_cylinder_instance) * instance_build.cylinder_count + 4*sizeof(uint32_t);
+	GLuint cylinder_buffer;
+	glGenBuffers(1, &cylinder_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, cylinder_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, cylinder_buffer_size, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	uint32_t box_buffer_size = sizeof(struct light_scene_implicit_box_instance) * instance_build.box_count + 4*sizeof(uint32_t);	
+	GLuint box_buffer;
+	glGenBuffers(1, &box_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, box_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, box_buffer_size, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	uint32_t light_buffer_size = sizeof(struct light_scene_light_light_instance) * instance_build.light_count + 4*sizeof(uint32_t);
+	GLuint light_buffer;
+	glGenBuffers(1, &light_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, light_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, light_buffer_size, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	
+	/* See shader source for structure of matrix */	
+	uint32_t object_buffer_size = sizeof(struct light_scene_implicit_object_instance) * instance_build.object_count + 4*sizeof(uint32_t);
+	GLuint object_buffer;
+	glGenBuffers(1, &object_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, object_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, object_buffer_size, NULL, GL_STATIC_DRAW);
+	
+
+	uint32_t object_node_buffer_size = sizeof(struct light_scene_implicit_object_node) * instance_build.object_node_count + 4*sizeof(uint32_t);	
+	GLuint object_node_buffer;
+	glGenBuffers(1, &object_node_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, object_node_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, object_node_buffer_size,  NULL, GL_STATIC_DRAW);
+	
+	instance->object_buffer 	= object_buffer;
+	instance->object_node_buffer 	= object_node_buffer;
+	instance->sphere_buffer		= sphere_buffer;
+	instance->cylinder_buffer	= cylinder_buffer;
+	instance->box_buffer		= box_buffer;
+	instance->light_buffer		= light_buffer;
+	instance->prepass_texture 	= prepass_texture;
 
 	return 0;
 }
+
+void light_implcit_commit_objects(struct light_implicit_instance *instance,
+	       	struct light_scene_implicit_object_instance *object_instance, uint32_t object_instance_count, 
+	       	struct light_scene_implicit_object_node *object_node, uint32_t object_node_count)
+{
+
+
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->object_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_instance)*object_instance_count, object_instance);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_instance)*object_instance_count, sizeof(uint32_t), &object_instance_count);
+
+
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->object_node_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_node)*object_node_count, object_node);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_node)*object_node_count, sizeof(uint32_t), &object_node_count);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void light_implicit_commit_sphere(struct light_implicit_instance *instance, struct light_scene_implicit_sphere_instance *sphere, uint32_t sphere_count)
+{
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->sphere_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sphere);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sizeof(uint32_t),  &sphere_count);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void light_implicit_commit_cylinder(struct light_implicit_instance *instance, struct light_scene_implicit_cylinder_instance *cylinder, uint32_t cylinder_count)
+{
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->cylinder_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, cylinder);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, sizeof(uint32_t), &cylinder_count);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void light_implicit_commit_box(struct light_implicit_instance *instance, struct light_scene_implicit_box_instance *box, uint32_t box_count)
+{
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->box_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_box_instance) * box_count, box);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_box_instance) * box_count, sizeof(uint32_t), &box_count);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+	
+void light_implicit_commit_light(struct light_implicit_instance *instance, struct light_scene_light_light_instance *light, uint32_t light_count)
+{
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->light_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_light_light_instance) * light_count, light);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_light_light_instance) * light_count, sizeof(uint32_t),  &light_count);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
 
 void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t width, uint32_t height)
 {
@@ -183,9 +356,18 @@ void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width/4, height/4, 0, GL_RED, GL_FLOAT, NULL);
 	glBindImageTexture(4, instance->prepass_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
 
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, instance->sphere_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, instance->cylinder_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, instance->box_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 3, instance->light_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 4, instance->object_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->object_node_buffer);
+
+#if 0
 	glUseProgram(instance->prepass_compute_program);
 	glDispatchCompute(width/4, height/4, 1);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+#endif 
 
 
 	glUseProgram(instance->compute_program);
@@ -195,9 +377,19 @@ void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t 
 
 }
 
-void light_implicit_deinitialize(struct light_implicit_instance *implicit)
+void light_implicit_deinitialize(struct light_implicit_instance *instance)
 {
-	glDeleteProgram(implicit->compute_program);
+	glDeleteProgram(instance->compute_program);
+	
+	glDeleteTextures(1, &instance->prepass_texture);
+
+	glDeleteBuffers(1, &instance->sphere_buffer);
+	glDeleteBuffers(1, &instance->cylinder_buffer);
+	glDeleteBuffers(1, &instance->box_buffer);
+	glDeleteBuffers(1, &instance->light_buffer);
+	
+	glDeleteBuffers(1, &instance->object_buffer);
+	glDeleteBuffers(1, &instance->object_node_buffer);
 }
 
 struct light_light_instance
@@ -219,21 +411,13 @@ int light_light_initialize(struct light_scene_instance *scene, struct light_ligh
 	const GLchar *source = compute_shader_source;
 	GLint length = read;
 
-	GLuint compute_program = light_shader_compute_create(&source, &length);
+	GLuint compute_program = light_shader_compute_create(&source, &length, 1);
 	if(compute_program == 0)
 	{
 		fprintf(stderr, "light_shader_compute_create() failed.");
 		return -1;
 	}
 
-	int result = light_scene_bind_program(scene, compute_program);
-	if(result < 0)
-	{
-		glDeleteProgram(compute_program);
-
-		fprintf(stderr, "light_scene_bind() failed. \n");	
-		return -1;
-	}
 
 	instance->compute_program = compute_program;
 	return 0;
@@ -271,27 +455,34 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);	
 	}
 	
-	struct light_scene_instance_build scene_instance_build = {
-		.sphere_count 	= 2,
-		.box_count 	= 1,
-		.cylinder_count = 1,
-		.light_count 	= 3,
-	};
 	
 	struct light_scene_instance scene;
-	result = light_scene_initialize(&scene, scene_instance_build);
+	result = light_scene_initialize(&scene);
 	if(result < 0)
 	{
 		printf("light_scene_initialize(): failed. \n");
 		exit(EXIT_FAILURE);
 	}
 
+
 	struct light_implicit_instance implicit_instance;
-	result = light_implicit_initialize(&scene, &implicit_instance);
-	if(result < 0)
 	{
-		printf("light_implicit_init(): failed. \n");
-		exit(EXIT_FAILURE);
+		struct light_implicit_instance_build build = {
+			.object_count = 1,
+			.object_node_count = 2,
+			.object_node_max_level = 1,	
+			.sphere_count 	= 2,
+			.box_count 	= 1,
+			.cylinder_count = 1,
+			.light_count 	= 3,
+		};
+
+		result = light_implicit_initialize(&scene, &implicit_instance, build);
+		if(result < 0)
+		{
+			printf("light_implicit_init(): failed. \n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	struct light_light_instance _light_instance;
@@ -386,41 +577,17 @@ int main(int args, char *argv[])
 	struct timeval 	fps_time_curr;
 
 	gettimeofday(&fps_time_last, NULL);
+	fps_time_curr = fps_time_last;
 
-	for(uint32_t i = 0; i < sphere_count; i++)
-	{
-		struct vec3 p = body[i].position;
-		sphere_instance[i].translation = m4x4trs(p);
-		sphere_instance[i].translation_inv = m4x4inv(&sphere_instance[i].translation, &result); 
-	}
-
-
-
-
-	for(uint32_t i = 0; i < cylinder_count; i++)
-	{
-		struct vec3 p = cylinder_body[i].position;
-		cylinder_instance[i].translation = m4x4trs(p);
-		cylinder_instance[i].translation_inv = m4x4inv(&cylinder_instance[i].translation, &result); 
-	}
-
-
-
-	for(uint32_t i = 0; i < box_count; i++)
-	{
-		struct vec3 p = box_body[i].position;
-		box_instance[i].translation = m4x4trs(p);
-		box_instance[i].translation_inv = m4x4inv(&box_instance[i].translation, &result); 
-	}
 		
-	light_scene_buffer_commit_sphere(&scene, sphere_instance, sphere_count, 0);
-	light_scene_buffer_commit_cylinder(&scene, cylinder_instance, cylinder_count, 0);
-	light_scene_buffer_commit_box(&scene, box_instance, box_count, 0);
-	light_scene_buffer_commit_light(&scene, light_instance, light_count, 0);
+	light_implicit_commit_sphere(&implicit_instance, sphere_instance, sphere_count);
+	light_implicit_commit_cylinder(&implicit_instance, cylinder_instance, cylinder_count);
+	light_implicit_commit_box(&implicit_instance, box_instance, box_count);
+	light_implicit_commit_light(&implicit_instance, light_instance, light_count);
 
 	
 
-	struct light_scene_implcit_object_instance object_instance[1];
+	struct light_scene_implicit_object_instance object_instance[1];
 	struct light_scene_implicit_object_node object_node[2];
 
 
@@ -428,18 +595,16 @@ int main(int args, char *argv[])
 		struct vec3 p = {.x = 0.0, .y = 1.0, .z = 0};
 		object_node[0].translation = m4x4trs(p);
 		object_node[0].translation_inv = m4x4inv(&object_node[0].translation, &result); 
-		object_node[0].index_type = LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION;
-		object_node[0].index_left = 0;
-		object_node[0].index_right= 0xFFFFFFFF;
+		object_node[0].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[0].object_index = 0;
 	}
 
 	{
 		struct vec3 p = {.x = 0.0, .y = -1.0, .z = 0};
 		object_node[1].translation = m4x4trs(p);
 		object_node[1].translation_inv = m4x4inv(&object_node[1].translation, &result); 
-		object_node[1].index_type = LIGHT_SCENE_IMPLICIT_OBJECT_OBJECT_UNION;
-		object_node[1].index_left = 1;
-		object_node[1].index_right= 0xFFFFFFFF;
+		object_node[1].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[1].object_index = 1;
 	}
 
 
@@ -447,29 +612,22 @@ int main(int args, char *argv[])
 		struct vec3 p = {.x = 0.0, .y = 0.0, .z = 10};
 		object_instance[0].translation = m4x4trs(p);
 		object_instance[0].translation_inv = m4x4inv(&object_instance[0].translation, &result); 
-		object_instance[0].index_type = LIGHT_SCENE_IMPLICIT_NODE_NODE_UNION;
+		object_instance[0].index_type = LIGHT_SCENE_IMPLICIT_UNION;
 		object_instance[0].index_left = 0;
 		object_instance[0].index_right = 1;
 		object_instance[0].levels = 1;
 	}
 
-	GLuint object_buffer;
-	glGenBuffers(1, &object_buffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, object_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(object_instance), object_instance, GL_STATIC_DRAW);
-	
-	GLuint object_node_buffer;
-	glGenBuffers(1, &object_node_buffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, object_node_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(object_node), object_node, GL_STATIC_DRAW);
-	
+	light_implcit_commit_objects(&implicit_instance, object_instance, 1, object_node, 2);
 
+	
+	float t = 0.0;
 	while(!light_platform_exit())
     	{
 		struct timeval fps_time_curr_tmp;
 		gettimeofday(&fps_time_curr_tmp, NULL);	
 		float deltatime = fps_time_curr_tmp.tv_sec - fps_time_curr.tv_sec + (float)(fps_time_curr_tmp.tv_usec - fps_time_curr.tv_usec)/(1000.0f*1000.0f);
-		fps_time_curr = fps_time_curr_tmp ;
+		fps_time_curr = fps_time_curr_tmp;
 		fps_time = fps_time + deltatime;
 
 		fps_frame_count++;
@@ -484,18 +642,16 @@ int main(int args, char *argv[])
 			fps_frame_count  = 0;
 
 		}
-#if 0
-		struct vec3 gravity = (struct vec3){.x = 0.0f, .y = -9.82f, .z=0.0f};
-		for(uint32_t i = 1; i < sphere_count; i++)
+		
+		t += deltatime;
 		{
-			body[i].velocity = v3add(body[i].velocity, v3scl(gravity, deltatime));	
+			struct vec3 p = {.x = 0.0, .y = cosf(t), .z = 10};
+			object_instance[0].translation = m4x4trs(p);
+			object_instance[0].translation_inv = m4x4inv(&object_instance[0].translation, &result); 
 		}
-	
-		body[0].velocity = (struct vec3){.x = 0.0f, .y=0.0f, .z=0.0f};	
-		body[0].position = (struct vec3){.x = 0.0f, .y=0.0f, .z=10.0f};	
-		light_physic_rope(body, sphere_count);
-#endif 
-	
+
+		light_implcit_commit_objects(&implicit_instance, object_instance, 1, object_node, 2);
+			
 		
 		/* copy the physic simulation into the rendering buffer */
 		
@@ -503,15 +659,13 @@ int main(int args, char *argv[])
 		width = 256; height = 256;
 		light_scene_bind(&scene, width, height, deltatime);
 		
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, object_buffer);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, object_node_buffer);
 
 		light_implicit_dispatch(&implicit_instance, width, height);
-
+#if 0
 		glUseProgram(_light_instance.compute_program);
 		glDispatchCompute(width, height, 1);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
+#endif 
 		light_platform_resolution(&width, &height);
 
 		glViewport(0, 0, width/2, height/2);
@@ -524,14 +678,14 @@ int main(int args, char *argv[])
 
 		glViewport(0, height/2, width/2, height/2);
 		light_surface_render(&quad_surface, scene.framebuffer.normal_texture);
-
+#if 0
 		glViewport(width/2, height/2, width/2, height/2);
 		light_surface_render(&quad_surface, scene.framebuffer.composed_texture);
-
-
+#endif 
 
 
 		light_platform_update();
+		glError("main loop:");
     	}
 		
 	light_implicit_deinitialize(&implicit_instance);
