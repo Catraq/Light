@@ -1,5 +1,7 @@
 #include "scene.h"
 
+#include "error.h"
+
 static void light_scene_view_initialize(struct light_camera_view_state *view_state, uint32_t width, uint32_t height)
 {
 
@@ -42,10 +44,18 @@ int light_scene_initialize(struct light_scene_instance *instance)
 
 	struct light_frame_info frame_info = light_frame_info_update(NULL);
 	light_scene_view_initialize(&instance->view_state, frame_info.width, frame_info.height);
+	CHECK_GL_ERROR();
 
 	/* Initialize framebuffer */
 	uint32_t frame_width = 512, frame_height = 512;
-	light_framebuffer_initialize(&instance->framebuffer, frame_width, frame_height);
+	result = light_framebuffer_initialize(&instance->framebuffer, frame_width, frame_height);
+	CHECK_GL_ERROR();
+
+	if(result < 0)
+	{
+		fprintf(stderr, "light_framebuffer_initialize() failed. \n");
+		return -1;	
+	}
 
 	return 0;
 }
@@ -57,24 +67,22 @@ int light_scene_bind(struct light_scene_instance *instance, uint32_t width, uint
 	instance->frame_info = frame_result; 
 
 	light_camera_input_update(&instance->update_state, &instance->view_state, 10.0f, delta_mouse, deltatime);
+	CHECK_GL_ERROR();
 
 	light_camera_view_matrix(&instance->view_state, width, height);
+	CHECK_GL_ERROR();
 
 	/* Resize and clear framebuffer */	
 	light_framebuffer_resize(&instance->framebuffer, width, height);
-	
+	CHECK_GL_ERROR();
+
 	glViewport(0,0, width, height);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-	glBindImageTexture(0, instance->framebuffer.color_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-	glBindImageTexture(1, instance->framebuffer.position_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-	glBindImageTexture(2, instance->framebuffer.normal_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-	glBindImageTexture(3, instance->framebuffer.composed_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-
 	light_camera_buffer_bind(&instance->view_state);
+	CHECK_GL_ERROR();
 
 	return 0;
 }

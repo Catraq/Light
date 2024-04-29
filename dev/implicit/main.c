@@ -23,45 +23,10 @@
 #include "framebuffer.h"
 #include "frame.h"
 #include "surface.c"
+#include "error.h"
 
 #include "physic/physic.c"
 #include "physic/physic_rope.c"
-
-void glError(const char *msg)
-{
-	GLenum error_code = GL_NO_ERROR;
-	while((error_code = glGetError()) != GL_NO_ERROR)
-	{
-		fprintf(stderr, msg);
-		switch(error_code)
-		{
-			case GL_INVALID_ENUM:
-				fprintf(stderr, "GL_INVALID_ENUM\n");	
-				break;
-			case GL_INVALID_VALUE:
-				fprintf(stderr, "GL_INVALID_VALUE\n");	
-				break;
-			case GL_INVALID_OPERATION:
-				fprintf(stderr, "GL_INVALID_OPERATION\n");	
-				break;
-			case GL_INVALID_FRAMEBUFFER_OPERATION:
-				fprintf(stderr, "GL_INVALID_FRAMEBUFFER_OPERATION\n");	
-				break;
-			case GL_OUT_OF_MEMORY:
-				fprintf(stderr, "GL_OUT_OF_MEMORY\n");	
-				break;
-			case GL_STACK_UNDERFLOW:
-				fprintf(stderr, "GL_STACK_UNDERFLOW\n");	
-				break;
-			case GL_STACK_OVERFLOW:
-				fprintf(stderr, "GL_STACK_OVERFLOW\n");	
-				break;
-		
-		}	
-	}
-
-}
-
 
 GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_t count)
 {
@@ -81,10 +46,10 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 
 		GLchar log[8192];
 		GLsizei length;
-		glGetShaderInfoLog(compute_shader, 8192, &length, (GLchar*)&log);
+		glGetShaderInfoLog(compute_shader, 8192, &length, log);
 		if( length != 0 )
 		{
-			fprintf(stderr, " ---- Compilation of shader failed.  ---- \n %s \n", (GLchar*)&log);
+			fprintf(stderr, " ---- Compilation of shader failed.  ---- \n %s \n", log);
 		}
 
 		glDeleteShader(compute_shader);
@@ -103,8 +68,8 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 	if(linked == GL_FALSE) {
 		GLsizei length;
 		GLchar log[8192];
-		glGetProgramInfoLog(compute_program, 8192, &length, (GLchar*)&log);
-		fprintf(stderr, " ---- Linking of program failed ---- \n %s \n", (GLchar*)&log);
+		glGetProgramInfoLog(compute_program, 8192, &length, log);
+		fprintf(stderr, " ---- Linking of program failed ---- \n %s \n", log);
 
 		glDeleteProgram(compute_program);
 		return 0;
@@ -113,6 +78,7 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 
 	return compute_program;
 }
+
 
 struct light_implicit_instance_build
 {
@@ -136,11 +102,8 @@ struct light_implicit_instance
 {
 	struct light_implicit_instance_build instance_build;
 
-	GLuint compute_program;
-	
-	GLuint prepass_compute_program;	
-	GLuint prepass_texture;
-	
+	struct light_surface surface;
+
 	GLuint object_buffer;
 	GLuint object_node_buffer;
 	GLuint sphere_buffer;
@@ -164,17 +127,9 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
 			return -1;
 		}
-	
-		uint32_t object_node_stack_size = 0;	
-		uint32_t object_node_level_count = 1;
-		for(uint32_t i = 0; i < instance_build.object_node_max_level; i++)
-		{
-			object_node_level_count = object_node_level_count*2;
-			object_node_stack_size += object_node_level_count;
-		}
 
 		uint8_t compute_shader_source_header[512];
-		uint32_t gen = snprintf(compute_shader_source_header, 255, 
+		uint32_t gen = snprintf(compute_shader_source_header, 512, 
 			"#version 430 core \n" 
 			"#define OBJECT_NODE_STACK %u \n"
 			"#define OBJECT_NODE_COUNT %u \n"
@@ -182,7 +137,7 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			"#define SPHERE_COUNT %u \n"
 			"#define BOX_COUNT %u \n"
 			"#define CYLINDER_COUNT %u \n",
-		       	object_node_stack_size,
+		       	instance_build.object_node_max_level,
 			instance_build.object_node_count,
 			instance_build.object_count,
 			instance_build.sphere_count,
@@ -190,59 +145,34 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			instance_build.cylinder_count
 		); 
 
-		const GLchar *source[] =
+		const GLchar *source_fragment[] =
 		{
 			compute_shader_source_header,
 			compute_shader_source,
 		};
-		GLint length[] = {gen, read};
 
-		GLuint compute_program = light_shader_compute_create(source, length, 2);
-		if(compute_program == 0)
+		uint32_t length_fragment[] = {
+			gen, read
+		};
+
+		const GLchar *source_vertex[] = {
+			light_surface_vertex_shader_source
+		};
+
+
+		int result = light_surface_initialize_vertex_fragement_source(
+				&instance->surface, 
+				source_vertex, NULL, 1,
+			       	source_fragment, length_fragment, 2
+		);
+
+		if(result < 0)
 		{
-			fprintf(stderr, "light_shader_compute_create() failed.");
-			return -1;
+			fprintf(stderr, "light_surface_initialize_vertex_fragement_source() failed. \n");
+			return -1;	
 		}
-
-		instance->compute_program = compute_program;
-	}
-	
-	{
-		const char *compute_shader_filename = "../data/implicit_pre.txt";
-		uint8_t compute_shader_source[8192];
-		size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 8192);
-		if(read == 0){
-
-			glDeleteProgram(instance->compute_program);
-
-			fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
-			return -1;
-		}
-
-		const GLchar *source = compute_shader_source;
-		GLint length = read;
-
-		GLuint compute_program = light_shader_compute_create(&source, &length, 1);
-		if(compute_program == 0)
-		{
-
-			glDeleteProgram(instance->compute_program);
-
-			fprintf(stderr, "light_shader_compute_create() failed.");
-			return -1;
-		}
-
-		
-		
-		instance->prepass_compute_program = compute_program;
 
 	}
-
-	GLuint prepass_texture;
-	glGenTextures(1, &prepass_texture);
-	glBindTexture(GL_TEXTURE_2D, prepass_texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	uint32_t sphere_buffer_size = sizeof(struct light_scene_implicit_sphere_instance) * instance_build.sphere_count + 4*sizeof(uint32_t);
 	GLuint sphere_buffer;
@@ -292,12 +222,11 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 	instance->cylinder_buffer	= cylinder_buffer;
 	instance->box_buffer		= box_buffer;
 	instance->light_buffer		= light_buffer;
-	instance->prepass_texture 	= prepass_texture;
 
 	return 0;
 }
 
-void light_implcit_commit_objects(struct light_implicit_instance *instance,
+void light_implicit_commit_objects(struct light_implicit_instance *instance,
 	       	struct light_scene_implicit_object_instance *object_instance, uint32_t object_instance_count, 
 	       	struct light_scene_implicit_object_node *object_node, uint32_t object_node_count)
 {
@@ -352,9 +281,6 @@ void light_implicit_commit_light(struct light_implicit_instance *instance, struc
 void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t width, uint32_t height)
 {
 
-	glBindTexture(GL_TEXTURE_2D, instance->prepass_texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width/4, height/4, 0, GL_RED, GL_FLOAT, NULL);
-	glBindImageTexture(4, instance->prepass_texture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, instance->sphere_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, instance->cylinder_buffer);
@@ -363,26 +289,13 @@ void light_implicit_dispatch(struct light_implicit_instance *instance, uint32_t 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 4, instance->object_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->object_node_buffer);
 
-#if 0
-	glUseProgram(instance->prepass_compute_program);
-	glDispatchCompute(width/4, height/4, 1);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-#endif 
-
-
-	glUseProgram(instance->compute_program);
-	glDispatchCompute(width, height, 1);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
+	light_surface_render(&instance->surface);
 
 }
 
 void light_implicit_deinitialize(struct light_implicit_instance *instance)
 {
-	glDeleteProgram(instance->compute_program);
 	
-	glDeleteTextures(1, &instance->prepass_texture);
-
 	glDeleteBuffers(1, &instance->sphere_buffer);
 	glDeleteBuffers(1, &instance->cylinder_buffer);
 	glDeleteBuffers(1, &instance->box_buffer);
@@ -454,7 +367,7 @@ int main(int args, char *argv[])
 		printf("light_surface_initialize(): failed. \n");
 		exit(EXIT_FAILURE);	
 	}
-	
+	CHECK_GL_ERROR();
 	
 	struct light_scene_instance scene;
 	result = light_scene_initialize(&scene);
@@ -464,13 +377,14 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	CHECK_GL_ERROR();
 
 	struct light_implicit_instance implicit_instance;
 	{
 		struct light_implicit_instance_build build = {
 			.object_count = 1,
-			.object_node_count = 2,
-			.object_node_max_level = 1,	
+			.object_node_count = 4,
+			.object_node_max_level = 5,	
 			.sphere_count 	= 2,
 			.box_count 	= 1,
 			.cylinder_count = 1,
@@ -566,7 +480,7 @@ int main(int args, char *argv[])
 	light_instance[1].color = (struct vec3){.x=0.0, .y=1.0f, .z=1.0f};
 	light_instance[2].color = (struct vec3){.x=0.0, .y=0.0f, .z=1.0f};
 
-	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 
 
@@ -588,23 +502,36 @@ int main(int args, char *argv[])
 	
 
 	struct light_scene_implicit_object_instance object_instance[1];
-	struct light_scene_implicit_object_node object_node[2];
+	struct light_scene_implicit_object_node object_node[4];
 
 
 	{
-		struct vec3 p = {.x = 0.0, .y = 1.0, .z = 0};
-		object_node[0].translation = m4x4trs(p);
+		struct vec3 p1 = {.x = 0.0, .y = 1.0, .z = 0};
+		object_node[0].translation = m4x4trs(p1);
 		object_node[0].translation_inv = m4x4inv(&object_node[0].translation, &result); 
 		object_node[0].index_type = LIGHT_SCENE_IMPLICIT_UNION;
 		object_node[0].object_index = 0;
-	}
+		object_node[0].node_index = 2;
 
-	{
-		struct vec3 p = {.x = 0.0, .y = -1.0, .z = 0};
-		object_node[1].translation = m4x4trs(p);
+		struct vec3 p2 = {.x = 0.0, .y = -1.0, .z = 0};
+		object_node[1].translation = m4x4trs(p2);
 		object_node[1].translation_inv = m4x4inv(&object_node[1].translation, &result); 
 		object_node[1].index_type = LIGHT_SCENE_IMPLICIT_UNION;
 		object_node[1].object_index = 1;
+		object_node[1].node_index = 3;
+
+		struct vec3 p3 = {.x = 1.0, .y = 0.0, .z = 0};
+		object_node[2].translation = m4x4trs(p3);
+		object_node[2].translation_inv = m4x4inv(&object_node[2].translation, &result); 
+		object_node[2].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[2].object_index = 0;
+
+		struct vec3 p4 = {.x = -1.0, .y = 0.0, .z = 0};
+		object_node[3].translation = m4x4trs(p4);
+		object_node[3].translation_inv = m4x4inv(&object_node[3].translation, &result); 
+		object_node[3].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[3].object_index = 1;
+
 	}
 
 
@@ -615,12 +542,11 @@ int main(int args, char *argv[])
 		object_instance[0].index_type = LIGHT_SCENE_IMPLICIT_UNION;
 		object_instance[0].index_left = 0;
 		object_instance[0].index_right = 1;
-		object_instance[0].levels = 1;
+		object_instance[0].levels = 2;
 	}
 
-	light_implcit_commit_objects(&implicit_instance, object_instance, 1, object_node, 2);
+	light_implicit_commit_objects(&implicit_instance, object_instance, 1, object_node, 4);
 
-	
 	float t = 0.0;
 	while(!light_platform_exit())
     	{
@@ -650,17 +576,20 @@ int main(int args, char *argv[])
 			object_instance[0].translation_inv = m4x4inv(&object_instance[0].translation, &result); 
 		}
 
-		light_implcit_commit_objects(&implicit_instance, object_instance, 1, object_node, 2);
+		light_implicit_commit_objects(&implicit_instance, object_instance, 1, object_node, 4);
 			
 		
 		/* copy the physic simulation into the rendering buffer */
 		
 		uint32_t width, height;
-		width = 256; height = 256;
+		width = 512; height = 512;
 		light_scene_bind(&scene, width, height, deltatime);
-		
-
+#if 1	
+		glViewport(0, 0, width, height);
+		glBindFramebuffer(GL_FRAMEBUFFER, scene.framebuffer.framebuffer);
 		light_implicit_dispatch(&implicit_instance, width, height);
+#endif 
+
 #if 0
 		glUseProgram(_light_instance.compute_program);
 		glDispatchCompute(width, height, 1);
@@ -668,16 +597,17 @@ int main(int args, char *argv[])
 #endif 
 		light_platform_resolution(&width, &height);
 
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, width/2, height/2);
 		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		light_surface_render(&quad_surface, scene.framebuffer.color_texture);
+		light_surface_render_textured(&quad_surface, scene.framebuffer.color_texture);
 		
 		glViewport(width/2, 0, width/2, height/2);
-		light_surface_render(&quad_surface, scene.framebuffer.position_texture);
+		light_surface_render_textured(&quad_surface, scene.framebuffer.position_texture);
 
 		glViewport(0, height/2, width/2, height/2);
-		light_surface_render(&quad_surface, scene.framebuffer.normal_texture);
+		light_surface_render_textured(&quad_surface, scene.framebuffer.normal_texture);
 #if 0
 		glViewport(width/2, height/2, width/2, height/2);
 		light_surface_render(&quad_surface, scene.framebuffer.composed_texture);

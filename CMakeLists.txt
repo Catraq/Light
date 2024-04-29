@@ -28,6 +28,7 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/scene.c"
 	"${PROJECT_SOURCE_DIR}/src/camera.c"
 	"${PROJECT_SOURCE_DIR}/src/frame.c"
+	"${PROJECT_SOURCE_DIR}/src/error.c"
 	"${PROJECT_SOURCE_DIR}/src/misc/file.c"
 	"${PROJECT_SOURCE_DIR}/src/camera_input.c"
 	"${PROJECT_SOURCE_DIR}/src/framebuffer.c"
