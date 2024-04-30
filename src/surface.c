@@ -1,4 +1,4 @@
-	
+#include "surface.h"	
 
 const GLchar light_surface_vertex_shader_source[] = 
 {
@@ -37,17 +37,6 @@ const GLuint light_surface_quad_indices[] = {
 };
 
 const GLuint light_surface_quad_indices_count = sizeof(light_surface_quad_indices)/sizeof(light_surface_quad_indices[0]);
-
-
-
-struct light_surface
-{
-	GLuint program;
-	GLuint vertex_array;
-	GLuint vertex_buffer;
-	GLuint element_buffer;
-	GLuint draw_count;
-};
 
 GLint light_create_program(const char *vertex_source, const char *fragment_source)
 {

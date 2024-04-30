@@ -1,6 +1,9 @@
 #ifndef LIGHT_SCENE_OBJECT_H
 #define LIGHT_SCENE_OBJECT_H
 
+#include "math/vec.h"
+#include "math/mat4x4.h"
+
 /* 
  * Structures in thei file will be mirrored on GPU. 
  * They should comply with layout std430 as it 
