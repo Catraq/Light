@@ -367,8 +367,8 @@ distance_result distance(vec4 p, float t_max)
 
 void main()
 {
-	
-	vec2 uv = 2.0*fragcoord.xy-1.0;
+	vec2 coord = mix(vec2(0, 0), vec2(1, 1), gl_FragCoord.xy / vec2(width, height));
+	vec2 uv = 2.0*coord.xy-1.0;
 	uv.x *= float(width)/float(height);
 	vec3 ray = normalize(vec3(uv, 1.0));
 	
