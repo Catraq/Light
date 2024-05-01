@@ -35,6 +35,14 @@ struct box_instance
 };
 
 
+struct light_instance
+{
+	vec3 position;
+	float padding1;
+	vec3 color;
+	float padding2;
+};
+
 
 
 #define	UNION 		0
@@ -93,6 +101,13 @@ layout(binding=2) uniform box_ubo
 	box_instance 	boxes[BOX_COUNT];
 	uint		boxes_count;
 	uint		boxes_dummy[3];
+};
+
+layout(binding=3) uniform light_ubo
+{
+	light_instance lights[LIGHT_COUNT];
+	uint		lights_count;
+	uint		lights_dummy[3];
 };
 
 
@@ -368,6 +383,38 @@ distance_result distance(vec4 p, float t_max)
 	
 }
 
+//Soft shadow variation, see shadertoy. 
+float shadow(vec3 ro, vec3 rd, float t_max)
+{	
+	float res = 1.0;
+	float t = 0.0;	
+	float ph = 1e10;
+	float w = 1.0;
+	distance_result d_res; 
+	
+	for(int i = 0; i < 32; i++)
+	{
+		d_res = distance(vec4(ro, 1.0) + vec4(rd*t, 1.0), t_max);
+		float h = d_res.min;
+		
+		float y = h*h/(2.0*ph);
+            	float d = sqrt(h*h-y*y);
+            	res = min( res, d/(w*max(0.0,t-y)) );
+            	ph = h;
+            	
+            	t = t + d_res.min;
+            	
+		if(d_res.min < 0.01 || t > t_max )
+		{
+			break;
+		}
+		
+	}
+	
+	res = clamp( res, 0.0, 1.0 );
+    	return res*res*(3.0-2.0*res);	
+}
+
 void main()
 {
 	vec2 coord = mix(vec2(0, 0), vec2(1, 1), gl_FragCoord.xy / vec2(width, height));
@@ -406,9 +453,24 @@ void main()
 			distance(vec4(n_ray+e.yyxy), t_max).min - distance(vec4(n_ray-e.yyxy), t_max).min
 		);
 
-		n = normalize(-n);	
+		n = normalize(n);	
 		
-		color = d_res.color;
+		vec3 color_result = vec3(0.0);
+		
+		for(uint i = 0; i < lights_count; i++)
+		{
+			vec3 light_pos = lights[i].position;
+			vec3 light_color = lights[i].color;
+			
+
+			vec3 light_dir = normalize(light_pos - p.xyz);
+			float diff = max(dot(n, light_dir), 0.0) * shadow(p.xyz, light_dir, t_max); 
+			vec3 diffuse = diff * light_color;
+			color_result = color_result + diffuse * d_res.color;
+		}
+
+
+		color = color_result;
 		position = p.xyz;
 		normal = n;
 	}

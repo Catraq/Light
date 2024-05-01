@@ -35,13 +35,15 @@ int light_implicit_initialize(struct light_scene_instance *scene, struct light_i
 			"#define OBJECT_COUNT %u \n"
 			"#define SPHERE_COUNT %u \n"
 			"#define BOX_COUNT %u \n"
-			"#define CYLINDER_COUNT %u \n",
+			"#define CYLINDER_COUNT %u \n"
+			"#define LIGHT_COUNT %u \n",
 		       	instance_build.object_node_max_level,
 			instance_build.object_node_count,
 			instance_build.object_count,
 			instance_build.sphere_count,
 			instance_build.box_count,
-			instance_build.cylinder_count
+			instance_build.cylinder_count,
+			instance_build.light_count
 		); 
 
 		const GLchar *source_fragment[] =

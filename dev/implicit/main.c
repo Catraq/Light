@@ -181,7 +181,7 @@ int main(int args, char *argv[])
 	}
 
 
-	const uint32_t box_count = 1;
+	const uint32_t box_count = 2;
 	struct light_scene_implicit_box_instance box_instance[box_count];
 	struct light_physic_particle *box_body = (struct light_physic_particle  *)malloc(sizeof(struct light_physic_particle) * box_count); 
 
@@ -200,17 +200,28 @@ int main(int args, char *argv[])
 		}
 	}
 
+
+	box_instance[1].dimension = (struct vec3){.x = 40.0f, .y = 0.1f, .z = 40.0f};
+	box_instance[1].color = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 1.0f};
+
+	box_body[1] = (struct light_physic_particle){
+		.position = (struct vec3){.x = -20.0f, .y = -4.0f, .z = -20.0f},
+		.velocity = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.mass = 1.0f, 
+		//.radius = 1.0f,
+	};
+
 	
-	const uint32_t light_count = 3;
+	const uint32_t light_count = 1;
 	struct light_scene_light_light_instance light_instance[light_count];
 	for(uint32_t i = 0; i < light_count; i++)
 	{
-		light_instance[i].position = (struct vec3){.x=-5.0f + 5.0f*i, 0.0f, 0.0f};
+		light_instance[i].position = (struct vec3){.x=0.0f, 5.0f, -4.0f*i};
 	}
 
 	light_instance[0].color = (struct vec3){.x=1.0, .y=0.0f, .z=1.0f};
-	light_instance[1].color = (struct vec3){.x=0.0, .y=1.0f, .z=1.0f};
-	light_instance[2].color = (struct vec3){.x=0.0, .y=0.0f, .z=1.0f};
+	//light_instance[1].color = (struct vec3){.x=0.0, .y=1.0f, .z=1.0f};
+	///light_instance[2].color = (struct vec3){.x=0.0, .y=0.0f, .z=1.0f};
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
@@ -232,8 +243,8 @@ int main(int args, char *argv[])
 	light_implicit_commit_light(&implicit_instance, light_instance, light_count);
 
 
-	struct light_scene_implicit_object_instance object_instance[1+1+1];
-	struct light_scene_implicit_object_node object_node[4+2+2];
+	struct light_scene_implicit_object_instance object_instance[1+1+1+1];
+	struct light_scene_implicit_object_node object_node[4+2+2+2];
 
 
 	{
@@ -289,7 +300,13 @@ int main(int args, char *argv[])
 		object_node[7].translation = m4x4trs(p4);
 		object_node[7].translation_inv = m4x4inv(&object_node[7].translation, &result); 
 		object_node[7].index_type = LIGHT_SCENE_IMPLICIT_UNION;
-		object_node[7].object_index = 2;
+		object_node[7].object_index = 3;
+
+		object_node[8].translation = m4x4trs(p4);
+		object_node[8].translation_inv = m4x4inv(&object_node[8].translation, &result); 
+		object_node[8].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[8].object_index = 4;
+
 
 
 	}
@@ -320,10 +337,18 @@ int main(int args, char *argv[])
 		object_instance[2].index_right = 7;
 		object_instance[2].levels = 1;
 
+		struct vec3 p4 = {.x = -20.0, .y = -4.0, .z = -20.0};
+		object_instance[3].translation = m4x4trs(p4);
+		object_instance[3].translation_inv = m4x4inv(&object_instance[3].translation, &result); 
+		object_instance[3].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_instance[3].index_left = 8;
+		object_instance[3].index_right = 8;
+		object_instance[3].levels = 1;
+
 
 	}
 
-	light_implicit_commit_objects(&implicit_instance, object_instance, 3, object_node, 8);
+	light_implicit_commit_objects(&implicit_instance, object_instance, 4, object_node, 9);
 
 	float t = 0.0;
 	while(!light_platform_exit())
@@ -364,7 +389,7 @@ int main(int args, char *argv[])
 
 		}
 
-		light_implicit_commit_objects(&implicit_instance, object_instance, 3, object_node, 8);
+		light_implicit_commit_objects(&implicit_instance, object_instance, 4, object_node, 9);
 			
 		
 		/* copy the physic simulation into the rendering buffer */
