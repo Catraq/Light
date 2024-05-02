@@ -216,10 +216,10 @@ int main(int args, char *argv[])
 	struct light_scene_light_light_instance light_instance[light_count];
 	for(uint32_t i = 0; i < light_count; i++)
 	{
-		light_instance[i].position = (struct vec3){.x=0.0f, 5.0f, -4.0f*i};
+		light_instance[i].position = (struct vec3){.x=0.0f, 10.0f, 10.0};
 	}
 
-	light_instance[0].color = (struct vec3){.x=1.0, .y=0.0f, .z=1.0f};
+	light_instance[0].color = (struct vec3){.x=1.0, .y=0.1f, .z=1.0f};
 	//light_instance[1].color = (struct vec3){.x=0.0, .y=1.0f, .z=1.0f};
 	///light_instance[2].color = (struct vec3){.x=0.0, .y=0.0f, .z=1.0f};
 
@@ -337,7 +337,7 @@ int main(int args, char *argv[])
 		object_instance[2].index_right = 7;
 		object_instance[2].levels = 1;
 
-		struct vec3 p4 = {.x = -20.0, .y = -4.0, .z = -20.0};
+		struct vec3 p4 = {.x = -20.0, .y = -1.0, .z = -20.0};
 		object_instance[3].translation = m4x4trs(p4);
 		object_instance[3].translation_inv = m4x4inv(&object_instance[3].translation, &result); 
 		object_instance[3].index_type = LIGHT_SCENE_IMPLICIT_UNION;

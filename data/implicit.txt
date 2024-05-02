@@ -384,17 +384,17 @@ distance_result distance(vec4 p, float t_max)
 }
 
 //Soft shadow variation, see shadertoy. 
-float shadow(vec3 ro, vec3 rd, float t_max)
+float shadow(vec4 ro, vec4 rd, float t_max)
 {	
 	float res = 1.0;
 	float t = 0.0;	
 	float ph = 1e10;
-	float w = 1.0;
+	float w = 0.1;
 	distance_result d_res; 
 	
 	for(int i = 0; i < 32; i++)
 	{
-		d_res = distance(vec4(ro, 1.0) + vec4(rd*t, 1.0), t_max);
+		d_res = distance(ro +rd*t, t_max);
 		float h = d_res.min;
 		
 		float y = h*h/(2.0*ph);
@@ -404,7 +404,7 @@ float shadow(vec3 ro, vec3 rd, float t_max)
             	
             	t = t + d_res.min;
             	
-		if(d_res.min < 0.01 || t > t_max )
+		if(res < 0.0001 || t > t_max )
 		{
 			break;
 		}
@@ -442,7 +442,7 @@ void main()
 	
 	if(t < t_max)
 	{
-		vec4 p = view*d_res.p;
+		vec4 p = d_res.p;
 		
 		vec3 e = vec3(0.01, 0.0, 0.0);
 		
@@ -454,6 +454,7 @@ void main()
 		);
 
 		n = normalize(n);	
+		//n = (view * vec4(n, 0.0)).xyz;
 		
 		vec3 color_result = vec3(0.0);
 		
@@ -464,7 +465,7 @@ void main()
 			
 
 			vec3 light_dir = normalize(light_pos - p.xyz);
-			float diff = max(dot(n, light_dir), 0.0) * shadow(p.xyz, light_dir, t_max); 
+			float diff = clamp(dot(n, light_dir), 0.0, 1.0) * shadow(vec4(p.xyz, 1), vec4(light_dir, 0), t_max); 
 			vec3 diffuse = diff * light_color;
 			color_result = color_result + diffuse * d_res.color;
 		}
