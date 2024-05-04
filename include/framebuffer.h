@@ -1,6 +1,8 @@
 #ifndef FRAMEBUFFER_H_
 #define FRAMEBUFFER_H_
 
+#include "platform.h"
+
 struct light_framebuffer
 {
 	GLuint framebuffer;

@@ -11,8 +11,10 @@
 #include "platform.h"
 
 #include "scene.h"
+#include "scene/state.h"
 #include "scene/object.h"
 #include "scene/implicit.h"
+#include "scene/particle.h"
 
 #include "misc/file.h"
 
@@ -81,8 +83,6 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 }
 
 
-
-
 int main(int args, char *argv[])
 {
 	int result;
@@ -119,10 +119,10 @@ int main(int args, char *argv[])
 	}
 
 	CHECK_GL_ERROR();
+	
+	struct light_scene_state_build state_build = {
 
-	struct light_implicit_instance implicit_instance;
-	{
-		struct light_implicit_instance_build build = {
+		.implicit_build = {
 			.object_count = 10,
 			.object_node_count = 10,
 			.object_node_max_level = 10,	
@@ -130,16 +130,20 @@ int main(int args, char *argv[])
 			.box_count 	= 10,
 			.cylinder_count = 10,
 			.light_count 	= 10,
-		};
+		},
+		.particle_build = {
+			.emitter_count = 1,
+			.emitter_instance_count = 1,
+			.emitter_particle_count = 64,	
+		},
+	};
 
-		result = light_implicit_initialize(&scene, &implicit_instance, build);
-		if(result < 0)
-		{
-			printf("light_implicit_init(): failed. \n");
-			exit(EXIT_FAILURE);
-		}
+	struct light_scene_state_instance state_instance;
+	result = light_scene_state_initialize(&state_instance, &state_build);
+	if(result < 0){
+		printf("light_scene_state_initialize() failed. \n");
+		exit(EXIT_FAILURE);
 	}
-
 
 	const uint32_t sphere_count = 2;
 	struct light_scene_implicit_sphere_instance sphere_instance[sphere_count];
@@ -237,10 +241,10 @@ int main(int args, char *argv[])
 	fps_time_curr = fps_time_last;
 
 		
-	light_implicit_commit_sphere(&implicit_instance, sphere_instance, sphere_count);
-	light_implicit_commit_cylinder(&implicit_instance, cylinder_instance, cylinder_count);
-	light_implicit_commit_box(&implicit_instance, box_instance, box_count);
-	light_implicit_commit_light(&implicit_instance, light_instance, light_count);
+	light_scene_implicit_commit_sphere(&state_instance, &state_build, sphere_instance, sphere_count);
+	light_scene_implicit_commit_cylinder(&state_instance, &state_build,  cylinder_instance, cylinder_count);
+	light_scene_implicit_commit_box(&state_instance, &state_build, box_instance, box_count);
+	light_scene_implicit_commit_light(&state_instance, &state_build, light_instance, light_count);
 
 
 	struct light_scene_implicit_object_instance object_instance[1+1+1+1];
@@ -348,7 +352,7 @@ int main(int args, char *argv[])
 
 	}
 
-	light_implicit_commit_objects(&implicit_instance, object_instance, 4, object_node, 9);
+	light_scene_implicit_commit_objects(&state_instance, &state_build, object_instance, 4, object_node, 9);
 
 	float t = 0.0;
 	while(!light_platform_exit())
@@ -389,20 +393,12 @@ int main(int args, char *argv[])
 
 		}
 
-		light_implicit_commit_objects(&implicit_instance, object_instance, 4, object_node, 9);
+		light_scene_implicit_commit_objects(&state_instance, &state_build, object_instance, 4, object_node, 9);
 			
-		
-		/* copy the physic simulation into the rendering buffer */
-		
-		uint32_t width, height;
-		width = 256; height = 256;
+		int width=256, height=256;		
 		light_scene_bind(&scene, width, height, deltatime);
-#if 1	
-		glViewport(0, 0, width, height);
-		glBindFramebuffer(GL_FRAMEBUFFER, scene.framebuffer.framebuffer);
-		light_implicit_dispatch(&implicit_instance, width, height);
-#endif 
-
+		light_scene_state_dispatch(&state_instance, &state_build, &scene.framebuffer, width, height, deltatime);
+		
 #if 0
 		glUseProgram(_light_instance.compute_program);
 		glDispatchCompute(width, height, 1);
@@ -431,7 +427,6 @@ int main(int args, char *argv[])
 		glError("main loop:");
     	}
 		
-	light_implicit_deinitialize(&implicit_instance);
 	light_scene_deinitialize(&scene);
 
 
