@@ -82,6 +82,103 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 	return compute_program;
 }
 
+struct light_scene_particle_emitter_build
+{
+	uint32_t emitter_normal_count;	
+};
+
+struct light_scene_particle_emitter_instance
+{
+	struct light_surface surface;
+	uint32_t emitter_normal_buffer;
+};
+
+struct light_scene_particle_emitter_normal
+{
+	struct vec3 position;
+	float lifetime_expected;
+	struct vec3 velocity_expected;
+	float lifetime_variance;	
+	struct vec3 velocity_variance;
+	uint32_t emitter_offset;
+	uint32_t emitter_count;
+	uint32_t padding[3];
+};
+
+
+int light_scene_particle_emitter_initialize(struct light_scene_state_instance *instance, struct light_scene_state_build *build)
+{
+	const char *particle_shader_filename = "../data/particle_emitter.txt";
+	uint8_t particle_shader_source[2*8192];
+	size_t read = light_file_read_buffer(particle_shader_filename, particle_shader_source, 2*8192);
+	if(read == 0){
+		fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", particle_shader_filename);
+		return -1;
+	}
+
+	uint8_t particle_shader_source_header[512];
+	uint32_t gen = snprintf(particle_shader_source_header, 512, 
+		"#version 430 core \n" 
+		"#define EMITTER_COUNT %u \n"
+		"#define EMITTER_INSTANCE_COUNT %u \n"
+		"#define EMITTER_PARTICLE_COUNT %u \n",
+		build->particle_build.emitter_count,
+		build->particle_build.emitter_instance_count,
+		build->particle_build.emitter_particle_count
+	); 
+
+	const GLchar *source_fragment[] =
+	{
+		particle_shader_source_header,
+		particle_shader_source,
+	};
+
+	uint32_t length_fragment[] = {
+		gen, read
+	};
+
+	const GLchar *source_vertex[] = {
+		light_vertex_shader_source	
+	};
+
+
+	int result = light_surface_initialize_vertex_fragement_source(
+			&instance->particle_emitter_instance.surface, 
+			source_vertex, NULL, 1,
+			source_fragment, length_fragment, 2
+	);
+
+	if(result < 0)
+	{
+		fprintf(stderr, "light_surface_initialize_vertex_fragement_source() failed. \n");
+		return -1;	
+	}
+	
+	uint32_t particle_emitter_buffer_size = sizeof(struct light_scene_particle_emitter_normal)*build->particle_emitter_build.emitter_normal_count + 4 * sizeof(uint32_t);
+	glGenBuffers(1, &instance->particle_emitter_instance.emitter_normal_buffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->particle_emitter_instance.emitter_normal_buffer);
+	glBufferData(GL_UNIFORM_BUFFER, particle_emitter_buffer_size, NULL, GL_STATIC_DRAW);
+	glBindBuffers(GL_UNIFORM_BUFFER, 0);
+
+	
+	return 0;
+}
+
+void light_scene_particle_emitter_commit_normal(
+		struct light_scene_state_instance *instance, 
+		struct light_scene_state_build *build,
+		struct light_scene_particle_emitter_normal *normal,
+		uint32_t normal_count)
+{
+	uint32_t particle_emitter_buffer_size = sizeof(struct light_scene_particle_emitter_normal) * normal_count;  
+	glBindBuffer(GL_UNIFORM_BUFFER, instance->particle_emitter_instance.emitter_normal_buffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, particle_emitter_buffer_size, normal);
+	glBufferSubData(GL_UNIFORM_BUFFER, particle_emitter_buffer_size, sizeof(uint32_t), &normal_count);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+
+
 
 int main(int args, char *argv[])
 {
