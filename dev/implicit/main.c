@@ -82,28 +82,24 @@ GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_
 	return compute_program;
 }
 
-struct light_scene_particle_emitter_build
+static const GLchar light_vertex_shader_source[] = 
 {
-	uint32_t emitter_normal_count;	
+	"#version 430 core 					\n"
+	" layout ( location = 0 ) in vec2 r_position; 		\n"
+	" out vec2 fragcoord;					\n"
+	" void main(){						\n"
+	"	fragcoord = (r_position + vec2(1))/2;		\n"
+	" 	gl_Position = vec4(r_position, 0.0, 1.0);       \n"
+	"} 							\n"
 };
 
-struct light_scene_particle_emitter_instance
-{
-	struct light_surface surface;
-	uint32_t emitter_normal_buffer;
-};
 
-struct light_scene_particle_emitter_normal
+void light_scene_particle_emitter_deinitialize(struct light_scene_state_instance *instance)
 {
-	struct vec3 position;
-	float lifetime_expected;
-	struct vec3 velocity_expected;
-	float lifetime_variance;	
-	struct vec3 velocity_variance;
-	uint32_t emitter_offset;
-	uint32_t emitter_count;
-	uint32_t padding[3];
-};
+	glDeleteFramebuffers(1, &instance->particle_emitter_instance.emitter_framebuffer);
+	glDeleteBuffers(1, &instance->particle_emitter_instance.emitter_normal_buffer);
+	light_surface_deinitialize(&instance->particle_emitter_instance.surface);	
+}
 
 
 int light_scene_particle_emitter_initialize(struct light_scene_state_instance *instance, struct light_scene_state_build *build)
@@ -119,12 +115,8 @@ int light_scene_particle_emitter_initialize(struct light_scene_state_instance *i
 	uint8_t particle_shader_source_header[512];
 	uint32_t gen = snprintf(particle_shader_source_header, 512, 
 		"#version 430 core \n" 
-		"#define EMITTER_COUNT %u \n"
-		"#define EMITTER_INSTANCE_COUNT %u \n"
-		"#define EMITTER_PARTICLE_COUNT %u \n",
-		build->particle_build.emitter_count,
-		build->particle_build.emitter_instance_count,
-		build->particle_build.emitter_particle_count
+		"#define EMITTER_NORMAL_COUNT %u \n",
+		build->particle_emitter_build.emitter_normal_count
 	); 
 
 	const GLchar *source_fragment[] =
@@ -158,10 +150,53 @@ int light_scene_particle_emitter_initialize(struct light_scene_state_instance *i
 	glGenBuffers(1, &instance->particle_emitter_instance.emitter_normal_buffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, instance->particle_emitter_instance.emitter_normal_buffer);
 	glBufferData(GL_UNIFORM_BUFFER, particle_emitter_buffer_size, NULL, GL_STATIC_DRAW);
-	glBindBuffers(GL_UNIFORM_BUFFER, 0);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	glGenFramebuffers(1, &instance->particle_emitter_instance.emitter_framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, instance->particle_emitter_instance.emitter_framebuffer);
+
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, instance->particle_instance.position[0], 0);	
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, instance->particle_instance.velocity[0], 0);	
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, instance->particle_instance.acceleration[0], 0);	
+
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, instance->particle_instance.position[1], 0);	
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, instance->particle_instance.velocity[1], 0);	
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT5, instance->particle_instance.acceleration[1], 0);	
+
+	GLenum buffers[] = {
+		GL_COLOR_ATTACHMENT0,
+		GL_COLOR_ATTACHMENT1,
+		GL_COLOR_ATTACHMENT2,
+		GL_COLOR_ATTACHMENT3,
+		GL_COLOR_ATTACHMENT4,
+		GL_COLOR_ATTACHMENT6,
+	};
+
+	glDrawBuffers(6, buffers);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, instance->particle_emitter_instance.emitter_framebuffer);
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		fprintf(stderr, "glCheckFramebufferStatus(GL_FRAMEBUFFER) failed. \n ");
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		light_scene_particle_emitter_deinitialize(instance);
+		return -1;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	
 	return 0;
+}
+
+void light_scene_particle_emitter_dispatch(struct light_scene_state_instance *instance, struct light_scene_state_build *build)
+{
+	uint32_t width = build->particle_build.emitter_particle_count;
+	uint32_t height = build->particle_build.emitter_count;
+
+	glViewport(0, 0, width, height);
+	light_surface_render(&instance->particle_emitter_instance.surface);
+
 }
 
 void light_scene_particle_emitter_commit_normal(
@@ -230,8 +265,10 @@ int main(int args, char *argv[])
 		},
 		.particle_build = {
 			.emitter_count = 1,
-			.emitter_instance_count = 1,
 			.emitter_particle_count = 64,	
+		},
+		.particle_emitter_build  = {
+			.emitter_normal_count = 1,
 		},
 	};
 
@@ -239,6 +276,13 @@ int main(int args, char *argv[])
 	result = light_scene_state_initialize(&state_instance, &state_build);
 	if(result < 0){
 		printf("light_scene_state_initialize() failed. \n");
+		exit(EXIT_FAILURE);
+	}
+
+	result = light_scene_particle_emitter_initialize(&state_instance, &state_build);
+	if(result < 0)
+	{
+		printf("light_scene_particle_emitter_initialize() failed. \n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -495,7 +539,8 @@ int main(int args, char *argv[])
 		int width=256, height=256;		
 		light_scene_bind(&scene, width, height, deltatime);
 		light_scene_state_dispatch(&state_instance, &state_build, &scene.framebuffer, width, height, deltatime);
-		
+		light_scene_particle_emitter_dispatch(&state_instance, &state_build);
+
 #if 0
 		glUseProgram(_light_instance.compute_program);
 		glDispatchCompute(width, height, 1);

@@ -44,6 +44,7 @@ void light_scene_state_dispatch(struct light_scene_state_instance *instance, str
 	glBindBufferBase(GL_UNIFORM_BUFFER, 4, instance->implicit_instance.object_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->implicit_instance.object_node_buffer);
 
+	glBindBufferBase(GL_UNIFORM_BUFFER, 7, instance->particle_emitter_instance.emitter_normal_buffer);
 
 	light_scene_particle_simulate(instance, build, deltatime);
 

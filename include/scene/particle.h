@@ -10,14 +10,16 @@
 
 #include <stdint.h>
 
-struct light_scene_particle_emitter_instance
+struct light_scene_particle_emitter_normal
 {
 	struct vec3 position;
 	float lifetime_expected;
 	struct vec3 velocity_expected;
 	float lifetime_variance;	
 	struct vec3 velocity_variance;
-	float padding;
+	uint32_t emitter_offset;
+	uint32_t emitter_count;
+	uint32_t padding[3];
 };
 
 

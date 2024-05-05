@@ -16,8 +16,6 @@ void light_scene_particle_deinitialize(struct light_scene_particle_instance* ins
 {
 	light_surface_deinitialize(&instance->surface);
 
-	glDeleteBuffers(1, &instance->emitter_buffer);
-
 	glDeleteTextures(2, instance->position);
 	glDeleteTextures(2, instance->velocity);
 	glDeleteTextures(2, instance->acceleration);
@@ -40,7 +38,6 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 	uint32_t gen = snprintf(particle_shader_source_header, 512, 
 		"#version 430 core \n" 
 		"#define EMITTER_COUNT %u \n"
-		"#define EMITTER_INSTANCE_COUNT %u \n"
 		"#define EMITTER_PARTICLE_COUNT %u \n"
 		"#define OBJECT_NODE_STACK %u \n"
 		"#define OBJECT_NODE_COUNT %u \n"
@@ -50,7 +47,6 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		"#define CYLINDER_COUNT %u \n"
 		"#define LIGHT_COUNT %u \n",
 		build->particle_build.emitter_count,
-		build->particle_build.emitter_instance_count,
 		build->particle_build.emitter_particle_count,
 		build->implicit_build.object_node_max_level,
 		build->implicit_build.object_node_count,
@@ -97,13 +93,6 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		return -1;
 	} 
 
-
-
-	uint32_t emitter_buffer_size = sizeof(struct light_scene_particle_emitter_instance) * build->particle_build.emitter_instance_count + 4*sizeof(uint32_t);
-	glGenBuffers(1, &instance->particle_instance.emitter_buffer);
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->particle_instance.emitter_buffer);
-	glBufferData(GL_UNIFORM_BUFFER, emitter_buffer_size, NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	uint32_t width = build->particle_build.emitter_particle_count;
 	uint32_t height = build->particle_build.emitter_count;

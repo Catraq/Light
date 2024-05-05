@@ -1,0 +1,42 @@
+
+struct particle_emitter_normal
+{
+	vec3 position;
+	float lifetime_expected;
+	vec3 velocity_expected;
+	float lifetime_variance;
+	vec2 velocity_variance;
+	uint emitter_offset;
+	uint emitter_count;
+};
+
+layout(binding=6) uniform normal
+{
+	particle_emitter_normal emitter_normal[EMITTER_NORMAL_COUNT];
+	uint emitter_normal_count;
+};
+
+layout(location=5) out vec3 acceleration_out_2;
+layout(location=4) out vec3 velocity_out_2;
+layout(location=3) out vec3 position_out_2;
+
+layout(location=2) out vec3 acceleration_out_1;
+layout(location=1) out vec3 velocity_out_1;
+layout(location=0) out vec3 position_out_1;
+
+in vec2 fragcoord;
+
+void main()
+{
+	vec2 coord = fragcoord;
+	vec3 zero = vec3(0.0, 0.0, 0.0);
+	
+	acceleration_out_2 = zero;
+	acceleration_out_1 = zero;
+	
+	velocity_out_2 = zero;
+	velocity_out_1 = zero;
+	
+	position_out_2 = zero;
+	position_out_1 = zero;
+}

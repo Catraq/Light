@@ -29,7 +29,6 @@ int light_scene_implicit_initialize(struct light_scene_state_instance  *instance
 		uint32_t gen = snprintf(compute_shader_source_header, 512, 
 			"#version 430 core \n" 
 			"#define EMITTER_COUNT %u \n"
-			"#define EMITTER_INSTANCE_COUNT %u \n"
 			"#define EMITTER_PARTICLE_COUNT %u \n"
 			"#define OBJECT_NODE_STACK %u \n"
 			"#define OBJECT_NODE_COUNT %u \n"
@@ -39,7 +38,6 @@ int light_scene_implicit_initialize(struct light_scene_state_instance  *instance
 			"#define CYLINDER_COUNT %u \n"
 			"#define LIGHT_COUNT %u \n",
 			build->particle_build.emitter_count,
-			build->particle_build.emitter_instance_count,
 			build->particle_build.emitter_particle_count,
 			build->implicit_build.object_node_max_level,
 			build->implicit_build.object_node_count,

@@ -42,9 +42,11 @@ struct light_scene_implicit_instance
 
 struct light_scene_particle_build
 {
+	/* Number of emitters */
 	uint32_t emitter_count;
+
+	/* Number of particles per emitter */
 	uint32_t emitter_particle_count;
-	uint32_t emitter_instance_count;
 };
 
 
@@ -59,11 +61,21 @@ struct light_scene_particle_instance
 	GLuint velocity[2];
 	GLuint acceleration[2];
 
-	GLuint emitter_buffer;
-
 	GLint program_deltatime_location;
 };
 
+
+struct light_scene_particle_emitter_build
+{
+	uint32_t emitter_normal_count;	
+};
+
+struct light_scene_particle_emitter_instance
+{
+	struct light_surface surface;
+	GLuint emitter_normal_buffer;
+	GLuint emitter_framebuffer;
+};
 
 
 
@@ -71,12 +83,16 @@ struct light_scene_state_build
 {
 	struct light_scene_particle_build particle_build;
 
+	struct light_scene_particle_emitter_build particle_emitter_build;
+
 	struct light_scene_implicit_build implicit_build;
 };
 
 struct light_scene_state_instance
 {
 	struct light_scene_particle_instance particle_instance;
+
+	struct light_scene_particle_emitter_instance particle_emitter_instance;
 
 	struct light_scene_implicit_instance implicit_instance;
 };
