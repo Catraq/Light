@@ -60,8 +60,10 @@ struct light_scene_particle_instance
 	GLuint position[2];
 	GLuint velocity[2];
 	GLuint acceleration[2];
+	GLuint lifetime[2];
 
 	GLint program_deltatime_location;
+	GLint location_emitter_index;
 };
 
 
@@ -72,11 +74,8 @@ struct light_scene_particle_emitter_build
 
 struct light_scene_particle_emitter_instance
 {
-	struct light_surface surface;
 	GLuint emitter_normal_buffer;
-	GLuint emitter_framebuffer;
 };
-
 
 
 struct light_scene_state_build

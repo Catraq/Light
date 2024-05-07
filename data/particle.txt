@@ -1,27 +1,92 @@
 
+struct particle_emitter_normal
+{
+	vec3 position;
+	float lifetime_expected;
+	vec3 velocity_expected;
+	float lifetime_variance;
+	vec2 velocity_variance;
+	uint emitter_offset;
+	uint emitter_count;
+};
+
+layout(binding=7) uniform normal
+{
+	particle_emitter_normal emitter_normal[EMITTER_NORMAL_COUNT];
+	uint emitter_normal_count;
+};
+
+
 uniform float deltatime;
 
+layout(binding = 3) uniform sampler2D lifetime_in;
 layout(binding = 2) uniform sampler2D acceleration_in;
 layout(binding = 1) uniform sampler2D velocity_in;
 layout(binding = 0) uniform sampler2D position_in;
 
+layout(location= 3) out float lifetime_out;
 layout(location=2) out vec3 acceleration_out;
 layout(location=1) out vec3 velocity_out;
 layout(location=0) out vec3 position_out;
 
 in vec2 fragcoord;
 
+
+float nrand(vec2 n)
+{
+	return fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
+}
+
+
+const float PI = 3.1415926535;
+const float ALPHA = 0.14;
+const float INV_ALPHA = 1.0 / ALPHA;
+const float K = 2.0 / (PI * ALPHA);
+
+float inv_error_function(float x)
+{
+	float y = log(1.0 - x*x);
+	float z = K + 0.5 * y;
+	return sqrt(sqrt(z*z - y * INV_ALPHA) - z) * sign(x);
+}
+
+float gaussian_rand(vec2 n)
+{
+	float x = nrand(n);   
+	return inv_error_function(x*2.0-1.0)*0.15 + 0.5;
+}
+
+
 void main()
 {
-	vec2 coord = fragcoord;
+	ivec2 coord = ivec2(gl_FragCoord.x, gl_FragCoord.y);
 	
-	vec3 a = texture(acceleration_in, coord).xyz;
-	vec3 v = texture(velocity_in, coord).xyz;
-	vec3 p = texture(position_in, coord).xyz;
+	vec3 a = texelFetch(acceleration_in, coord, 0).xyz;
+	vec3 v = texelFetch(velocity_in, coord, 0).xyz;
+	vec3 p = texelFetch(position_in, coord, 0).xyz;
+	float l = texelFetch(lifetime_in, coord, 0).x;
 	
-	p = vec3(coord.x, 0, coord.y)*10.0;
+	float lifetime = l - deltatime;
+
+	if(lifetime < 0.0)
+	{
+		vec2 seed = coord.xy * deltatime;
+		vec3 dir = vec3(2*gaussian_rand(seed + p.xy * seed*deltatime)-1, 2*gaussian_rand(seed + p.yz * seed*deltatime)-1, 2*gaussian_rand(seed + p.xz * seed*deltatime)-1);
+		dir = normalize(dir);
+		float speed = gaussian_rand(seed + p.xy*p.yz*p.xz);
+		
+		acceleration_out = vec3(0); 
+		velocity_out = dir * speed; 
+		position_out = vec3(0.0);
+		lifetime_out = gaussian_rand(seed + p.xy*p.yz*p.xz)*10;
+	}
+	else
+	{
+		acceleration_out = a;
+		velocity_out = v + a * deltatime;
+		position_out = p + v * deltatime + a * deltatime * deltatime/2; 
+		lifetime_out = lifetime;
+	}
 	
-	acceleration_out = a;
-	velocity_out = v + a * deltatime;
-	position_out = p + v*deltatime + a * deltatime * deltatime/2.0;
+	
 }

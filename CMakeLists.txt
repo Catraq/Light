@@ -33,6 +33,7 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/scene/implicit.c"
 	"${PROJECT_SOURCE_DIR}/src/scene/state.c"
 	"${PROJECT_SOURCE_DIR}/src/scene/particle.c"
+	"${PROJECT_SOURCE_DIR}/src/scene/particle_emitter.c"
 	"${PROJECT_SOURCE_DIR}/src/misc/file.c"
 	"${PROJECT_SOURCE_DIR}/src/camera_input.c"
 	"${PROJECT_SOURCE_DIR}/src/framebuffer.c"

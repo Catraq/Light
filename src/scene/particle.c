@@ -39,6 +39,7 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		"#version 430 core \n" 
 		"#define EMITTER_COUNT %u \n"
 		"#define EMITTER_PARTICLE_COUNT %u \n"
+		"#define EMITTER_NORMAL_COUNT %u \n"
 		"#define OBJECT_NODE_STACK %u \n"
 		"#define OBJECT_NODE_COUNT %u \n"
 		"#define OBJECT_COUNT %u \n"
@@ -48,6 +49,7 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		"#define LIGHT_COUNT %u \n",
 		build->particle_build.emitter_count,
 		build->particle_build.emitter_particle_count,
+		build->particle_emitter_build.emitter_normal_count,
 		build->implicit_build.object_node_max_level,
 		build->implicit_build.object_node_count,
 		build->implicit_build.object_count,
@@ -102,22 +104,29 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 	{
 		glGenTextures(1, &instance->particle_instance.position[i]);
 		glBindTexture(GL_TEXTURE_2D, instance->particle_instance.position[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 
 		glGenTextures(1, &instance->particle_instance.velocity[i]);
 		glBindTexture(GL_TEXTURE_2D, instance->particle_instance.velocity[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 		glGenTextures(1, &instance->particle_instance.acceleration[i]);
 		glBindTexture(GL_TEXTURE_2D, instance->particle_instance.acceleration[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+		glGenTextures(1, &instance->particle_instance.lifetime[i]);
+		glBindTexture(GL_TEXTURE_2D, instance->particle_instance.lifetime[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
 
 		
 		glGenFramebuffers(1, &instance->particle_instance.framebuffer[i]);
@@ -125,14 +134,16 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, instance->particle_instance.position[i], 0);	
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, instance->particle_instance.velocity[i], 0);	
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, instance->particle_instance.acceleration[i], 0);	
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, instance->particle_instance.lifetime[i], 0);	
 
 		GLenum buffers[] = {
 			GL_COLOR_ATTACHMENT0,
 			GL_COLOR_ATTACHMENT1,
 			GL_COLOR_ATTACHMENT2,
+			GL_COLOR_ATTACHMENT3,
 		};
 
-		glDrawBuffers(3, buffers);
+		glDrawBuffers(4, buffers);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, instance->particle_instance.framebuffer[0]);
@@ -163,10 +174,7 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 void light_scene_particle_simulate(struct light_scene_state_instance* instance, struct light_scene_state_build *build, float deltatime)
 {
 
-	uint32_t width = build->particle_build.emitter_particle_count;
-	uint32_t height = build->particle_build.emitter_count;
 
-	glViewport(0, 0, width, height);
 
 	
 	uint32_t index = instance->particle_instance.buffer_index;
@@ -176,7 +184,11 @@ void light_scene_particle_simulate(struct light_scene_state_instance* instance, 
 
 	glUseProgram(surface->program);
 	glUniform1f(instance->particle_instance.program_deltatime_location, deltatime);
+	
+	uint32_t width = build->particle_build.emitter_particle_count;
+	uint32_t height = build->particle_build.emitter_count;
 
+	glViewport(0, 0, width, height);
 	glBindVertexArray(surface->vertex_array);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surface->element_buffer);
 	glDrawElements(GL_TRIANGLE_STRIP, surface->draw_count, GL_UNSIGNED_INT, 0);	
@@ -185,5 +197,4 @@ void light_scene_particle_simulate(struct light_scene_state_instance* instance, 
 	instance->particle_instance.buffer_index = (instance->particle_instance.buffer_index+1)%2; 
 
 }
-
 

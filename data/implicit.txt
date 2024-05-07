@@ -225,8 +225,8 @@ distance_result distance(vec4 p, float t_max)
 	{
 		for(uint j = 0; j < EMITTER_PARTICLE_COUNT; j++)
 		{
-			vec2 coord = vec2(float(j/EMITTER_PARTICLE_COUNT), float(i/EMITTER_COUNT));
-			vec3 pp = texture(particle_position_in, coord).xyz;
+			ivec2 coord = ivec2(j, i);
+			vec3 pp = texelFetch(particle_position_in, coord, 0).xyz;
 			float t = length(pp - p.xyz) - 0.1;
 			if(t < result.min){
 				result.min = t;
@@ -447,10 +447,10 @@ void main()
 	float t = 0.0;
 	
 	distance_result d_res; 
-	for(int i = 0; i < 256; i++)
+	for(int i = 0; i < 64; i++)
 	{
 		d_res = distance(view_inv*vec4(ray*t, 1.0), t_max);
-		if(d_res.min < 0.01 || t > t_max )
+		if(d_res.min < 0.001 || t > t_max )
 		{
 			break;
 		}
