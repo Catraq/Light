@@ -5,15 +5,22 @@ struct particle_emitter_normal
 	float lifetime_expected;
 	vec3 velocity_expected;
 	float lifetime_variance;
-	vec2 velocity_variance;
+	vec3 velocity_variance;
 	uint emitter_offset;
 	uint emitter_count;
+	uint padding[3];
 };
 
 layout(binding=7) uniform normal
 {
 	particle_emitter_normal emitter_normal[EMITTER_NORMAL_COUNT];
 	uint emitter_normal_count;
+};
+
+
+layout(binding=8) uniform emitter_index
+{
+	uint particle_emitter_index[EMITTER_COUNT];
 };
 
 
@@ -38,28 +45,10 @@ float nrand(vec2 n)
 }
 
 
-const float PI = 3.1415926535;
-const float ALPHA = 0.14;
-const float INV_ALPHA = 1.0 / ALPHA;
-const float K = 2.0 / (PI * ALPHA);
-
-float inv_error_function(float x)
-{
-	float y = log(1.0 - x*x);
-	float z = K + 0.5 * y;
-	return sqrt(sqrt(z*z - y * INV_ALPHA) - z) * sign(x);
-}
-
-float gaussian_rand(vec2 n)
-{
-	float x = nrand(n);   
-	return inv_error_function(x*2.0-1.0)*0.15 + 0.5;
-}
-
-
 void main()
 {
 	ivec2 coord = ivec2(gl_FragCoord.x, gl_FragCoord.y);
+	uint emitter_index = particle_emitter_index[coord.y];
 	
 	vec3 a = texelFetch(acceleration_in, coord, 0).xyz;
 	vec3 v = texelFetch(velocity_in, coord, 0).xyz;
@@ -70,15 +59,18 @@ void main()
 
 	if(lifetime < 0.0)
 	{
-		vec2 seed = coord.xy * deltatime;
-		vec3 dir = vec3(2*gaussian_rand(seed + p.xy * seed*deltatime)-1, 2*gaussian_rand(seed + p.yz * seed*deltatime)-1, 2*gaussian_rand(seed + p.xz * seed*deltatime)-1);
-		dir = normalize(dir);
-		float speed = gaussian_rand(seed + p.xy*p.yz*p.xz);
+		vec2 seed = coord.xy;
+		vec3 velocity_exp = emitter_normal[emitter_index].velocity_expected;
+		vec3 velocity_var = (2.0*vec3(
+			nrand(seed + 0.21*seed),
+			nrand(seed + 0.29*seed),
+			nrand(seed + 0.31*seed)
+		)-1.0)*emitter_normal[emitter_index].velocity_variance;
 		
 		acceleration_out = vec3(0); 
-		velocity_out = dir * speed; 
-		position_out = vec3(0.0);
-		lifetime_out = gaussian_rand(seed + p.xy*p.yz*p.xz)*10;
+		velocity_out = velocity_exp + velocity_var; 
+		position_out = emitter_normal[emitter_index].position;
+		lifetime_out = emitter_normal[emitter_index].lifetime_expected + emitter_normal[emitter_index].lifetime_variance * nrand(seed + 0.101*seed + 0.31*seed);
 	}
 	else
 	{

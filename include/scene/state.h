@@ -75,6 +75,7 @@ struct light_scene_particle_emitter_build
 struct light_scene_particle_emitter_instance
 {
 	GLuint emitter_normal_buffer;
+	GLuint emitter_lookup_buffer;
 };
 
 

@@ -138,7 +138,7 @@ int main(int args, char *argv[])
 			.emitter_particle_count = 64,	
 		},
 		.particle_emitter_build  = {
-			.emitter_normal_count = 1,
+			.emitter_normal_count = 2,
 		},
 	};
 
@@ -357,6 +357,36 @@ int main(int args, char *argv[])
 	}
 
 	light_scene_implicit_commit_objects(&state_instance, &state_build, object_instance, 4, object_node, 9);
+
+	struct light_scene_particle_emitter_normal particle_emitter_normal[2];
+
+       	particle_emitter_normal[0] = (struct light_scene_particle_emitter_normal){
+		.position = (struct vec3){.x=0.0, .y=0.0, .z=2.0},
+		.lifetime_expected = 5,
+		.velocity_expected = (struct vec3){.x=1.0, .y=0.0, .z=0.0},
+		.lifetime_variance = 5,	
+		.velocity_variance = (struct vec3){.x=1, .y=0.1, .z=0.1},
+		.emitter_offset	= 0,
+		.emitter_count = 4
+	};
+
+       	particle_emitter_normal[1] = (struct light_scene_particle_emitter_normal){
+		.position = (struct vec3){.x=0.0, .y=0.0, .z=5.0},
+		.lifetime_expected = 5,
+		.velocity_expected = (struct vec3){.x=1.0, .y=0.0, .z=0.0},
+		.lifetime_variance = 5,	
+		.velocity_variance = (struct vec3){.x=0.5, .y=0.1, .z=0.1},
+		.emitter_offset	= 4,
+		.emitter_count = 4
+	};
+
+	light_scene_particle_emitter_commit_normal(
+		&state_instance, 
+		&state_build,
+		particle_emitter_normal,
+		2
+	);
+
 
 	float t = 0.0;
 	while(!light_platform_exit())

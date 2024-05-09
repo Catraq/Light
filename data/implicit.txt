@@ -227,7 +227,7 @@ distance_result distance(vec4 p, float t_max)
 		{
 			ivec2 coord = ivec2(j, i);
 			vec3 pp = texelFetch(particle_position_in, coord, 0).xyz;
-			float t = length(pp - p.xyz) - 0.1;
+			float t = length(pp - p.xyz) - 0.01;
 			if(t < result.min){
 				result.min = t;
 				result.color = vec3(1.0, 0.0, 0.0);

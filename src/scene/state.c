@@ -45,6 +45,7 @@ void light_scene_state_dispatch(struct light_scene_state_instance *instance, str
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->implicit_instance.object_node_buffer);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 7, instance->particle_emitter_instance.emitter_normal_buffer);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 8, instance->particle_emitter_instance.emitter_lookup_buffer);
 
 	uint32_t index = instance->particle_instance.buffer_index;
 	glActiveTexture(GL_TEXTURE0);
