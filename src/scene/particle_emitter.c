@@ -42,9 +42,6 @@ void light_scene_particle_emitter_commit_normal(
 			lookup_index[normal[i].emitter_offset + j] = i;	
 		}	
 	}
-	for(uint32_t i = 0; i < build->particle_build.emitter_count; i++){
-		printf("%u\n", lookup_index[i]);
-	}
 
 
 	uint32_t particle_lookup_buffer_size = build->particle_build.emitter_count * sizeof(uint32_t);

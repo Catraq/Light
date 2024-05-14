@@ -130,8 +130,6 @@ layout(binding=5) uniform nodes_ubo
 };
 
 
-in vec2 fragcoord;
-
 layout(binding=6) uniform scene_ubo
 {
 	mat4 view;
@@ -141,6 +139,9 @@ layout(binding=6) uniform scene_ubo
 	uint dummy[2];
 	mat4 proj;	
 };
+
+
+flat in uint particle_id;
 
 float sphere(vec3 p, float r)
 {
@@ -214,6 +215,8 @@ distance_result distance_object(vec4 p, float t_max, uint index)
 	
 }
 
+
+
 distance_result distance(vec4 p, float t_max)
 {
 	
@@ -226,6 +229,7 @@ distance_result distance(vec4 p, float t_max)
 		for(uint j = 0; j < EMITTER_PARTICLE_COUNT; j++)
 		{
 			ivec2 coord = ivec2(j, i);
+			
 			vec3 pp = texelFetch(particle_position_in, coord, 0).xyz;
 			float t = length(pp - p.xyz) - 0.01;
 			if(t < result.min){
@@ -236,6 +240,7 @@ distance_result distance(vec4 p, float t_max)
 		}	
 		
 	}
+
 	
 	
 	for(int i = 0; i < objects_count; i++)
@@ -402,6 +407,7 @@ distance_result distance(vec4 p, float t_max)
 	
 }
 
+
 //Soft shadow variation, see shadertoy. 
 float shadow(vec4 ro, vec4 rd, float t_max)
 {	
@@ -434,6 +440,23 @@ float shadow(vec4 ro, vec4 rd, float t_max)
     	return res*res*(3.0-2.0*res);	
 }
 
+distance_result particle_distance(vec4 p, float t_max)
+{
+	distance_result result;
+	result.min = t_max;
+
+	ivec2 coord = ivec2(particle_id%EMITTER_PARTICLE_COUNT, particle_id/EMITTER_PARTICLE_COUNT);
+	vec3 pp = texelFetch(particle_position_in, coord, 0).xyz;
+	float t = length(pp - p.xyz) - 0.01;
+	if(t < result.min){
+		result.min = t;
+		result.color = vec3(1.0, 0.0, 0.0);
+		result.p = vec4(pp, 1);
+	}
+	
+	return result;
+}
+
 void main()
 {
 	vec2 coord = mix(vec2(0, 0), vec2(1, 1), gl_FragCoord.xy / vec2(width, height));
@@ -449,7 +472,7 @@ void main()
 	distance_result d_res; 
 	for(int i = 0; i < 64; i++)
 	{
-		d_res = distance(view_inv*vec4(ray*t, 1.0), t_max);
+		d_res = particle_distance(view_inv*vec4(ray*t, 1.0), t_max);
 		if(d_res.min < 0.001 || t > t_max )
 		{
 			break;
@@ -457,24 +480,30 @@ void main()
 		t = t + d_res.min;
 	}
 	
-	color = vec3(0.0);
 	
+	position = vec3(0,0,0);
 	if(t < t_max)
 	{
+		distance_result infront = distance(view_inv*vec4(ray*t, 1.0), t_max);
+		if(infront.min < d_res.min){
+			discard;
+		}
+	
 		vec4 p = d_res.p;
+		vec3 color_result = vec3(1.0);
+		
 		
 		vec3 e = vec3(0.01, 0.0, 0.0);
 		
 		vec4 n_ray = view_inv*vec4(ray*t, 1.0);
 		vec3 n = vec3(
-			distance(vec4(n_ray+e.xyyy), t_max).min - distance(vec4(n_ray-e.xyyy), t_max).min,
-			distance(vec4(n_ray+e.yxyy), t_max).min - distance(vec4(n_ray-e.yxyy), t_max).min,
-			distance(vec4(n_ray+e.yyxy), t_max).min - distance(vec4(n_ray-e.yyxy), t_max).min
+			particle_distance(vec4(n_ray+e.xyyy), t_max).min - particle_distance(vec4(n_ray-e.xyyy), t_max).min,
+			particle_distance(vec4(n_ray+e.yxyy), t_max).min - particle_distance(vec4(n_ray-e.yxyy), t_max).min,
+			particle_distance(vec4(n_ray+e.yyxy), t_max).min - particle_distance(vec4(n_ray-e.yyxy), t_max).min
 		);
 
 		n = normalize(n);	
 		
-		vec3 color_result = vec3(0.0);
 		
 		for(uint i = 0; i < lights_count; i++)
 		{
@@ -487,10 +516,14 @@ void main()
 			vec3 diffuse = diff * light_color;
 			color_result = color_result + diffuse * d_res.color;
 		}
-
-
+		
+		normal = n;
 		color = color_result;
-		position = vec3(0);
-		//normal = n;
+		position = p.xyz;
+		
+	}
+	else
+	{
+		discard;
 	}
 }

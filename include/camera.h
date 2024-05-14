@@ -13,6 +13,8 @@
 struct light_camera_view_state
 {
 	float fov;
+	float near;
+	float far;
 
 	struct vec3 position;
 	struct vec3 rotation;

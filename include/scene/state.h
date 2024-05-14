@@ -95,6 +95,7 @@ struct light_scene_state_instance
 	struct light_scene_particle_emitter_instance particle_emitter_instance;
 
 	struct light_scene_implicit_instance implicit_instance;
+
 };
 
 int light_scene_state_initialize(struct light_scene_state_instance *instance, struct light_scene_state_build *build);

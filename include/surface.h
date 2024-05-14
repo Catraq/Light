@@ -39,5 +39,12 @@ void light_surface_render_textured(
 		struct light_surface *light_surface,
 	       	GLuint texture
 );
+
+
+void light_surface_render_instanced(
+		struct light_surface *light_surface,
+	       	uint32_t instance_count
+);
+
 #endif 
 

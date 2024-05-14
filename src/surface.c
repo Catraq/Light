@@ -256,7 +256,7 @@ int light_surface_initialize_vertex_fragement_source(struct light_surface *surfa
 
 	GLuint light_surface_vertex_array, light_surface_vertex_buffer, light_surface_element_buffer;
 
-	GLint light_surface_program = light_shader_vertex_create(vertex_source, vertex_source_length, vertex_source_count, fragment_source, fragment_source_length, fragment_source_count);
+	GLuint light_surface_program = light_shader_vertex_create(vertex_source, vertex_source_length, vertex_source_count, fragment_source, fragment_source_length, fragment_source_count);
 	if(light_surface_program == 0){
 		fprintf(stderr, "light_shader_vertex_create(): failed \n");
 		return -1;
@@ -309,6 +309,16 @@ void light_surface_render(struct light_surface *light_surface)
 	glBindVertexArray(0);
 
 }
+
+void light_surface_render_instanced(struct light_surface *light_surface, uint32_t instance_count)
+{
+	glUseProgram(light_surface->program);
+	glBindVertexArray(light_surface->vertex_array);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_surface->element_buffer);
+	glDrawElementsInstanced(GL_TRIANGLE_STRIP, light_surface->draw_count, GL_UNSIGNED_INT, 0, instance_count);	
+	glBindVertexArray(0);
+}
+
 
 
 void light_surface_render_textured(struct light_surface *light_surface, GLuint texture)

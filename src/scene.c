@@ -8,9 +8,11 @@ static void light_scene_view_initialize(struct light_camera_view_state *view_sta
 	light_camera_initialize(view_state);
 
 	//Camera attributes 
-	const float fov = 3.14f/3.0f;
+	const float fov = 3.14f/2.0f;
 
 	view_state->fov = fov;
+	view_state->near = 0.0f;
+	view_state->far = 100.0f;
 	
 	//Setup camera. 
 	view_state->position = (struct vec3){0.0f, 0.0f, 0.0f};

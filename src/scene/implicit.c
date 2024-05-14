@@ -78,6 +78,7 @@ int light_scene_implicit_initialize(struct light_scene_state_instance  *instance
 
 	}
 
+
 	uint32_t sphere_buffer_size = sizeof(struct light_scene_implicit_sphere_instance) * build->implicit_build.sphere_count + 4*sizeof(uint32_t);
 	GLuint sphere_buffer;
 	glGenBuffers(1, &sphere_buffer);
