@@ -1,11 +1,11 @@
 #ifndef PARTICLE_EMITTER_H
 #define PARTICLE_EMITTER_H
 
-#include "scene/state.h"
+#include "state.h"
+#include "object.h"
 
 int light_scene_particle_emitter_initialize(
-	struct light_scene_state_instance *instance,
-	struct light_scene_state_build *build
+	struct light_scene_state_instance *instance
 );
 
 void light_scene_particle_emitter_deinitialize(
@@ -14,7 +14,6 @@ void light_scene_particle_emitter_deinitialize(
 
 void light_scene_particle_emitter_commit_normal(
 	struct light_scene_state_instance *instance, 
-	struct light_scene_state_build *build,
 	struct light_scene_particle_emitter_normal *normal,
 	uint32_t normal_count
 );

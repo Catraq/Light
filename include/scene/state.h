@@ -1,9 +1,9 @@
 #ifndef SCENE_STATE_H
 #define SCENE_STATE_H
 
+#include "surface.h"
 #include "framebuffer.h"
 
-#include "scene/particle.h"
 
 struct light_scene_implicit_build
 {
@@ -25,14 +25,14 @@ struct light_scene_implicit_build
 
 struct light_scene_implicit_instance
 {
-	struct light_surface surface;
-
 	GLuint object_buffer;
 	GLuint object_node_buffer;
 	GLuint sphere_buffer;
 	GLuint cylinder_buffer;
 	GLuint box_buffer;
 	GLuint light_buffer;
+
+	GLuint program;
 
 };
 
@@ -52,7 +52,6 @@ struct light_scene_particle_build
 
 struct light_scene_particle_instance
 {
-	struct light_surface surface;
 	
 	uint32_t buffer_index;
 
@@ -61,9 +60,9 @@ struct light_scene_particle_instance
 	GLuint velocity[2];
 	GLuint acceleration[2];
 	GLuint lifetime[2];
-
-	GLint program_deltatime_location;
-	GLint location_emitter_index;
+	
+	GLuint program;
+	GLuint program_deltatime_location;
 };
 
 
@@ -90,6 +89,10 @@ struct light_scene_state_build
 
 struct light_scene_state_instance
 {
+	struct light_scene_state_build build;
+
+	struct light_surface surface;
+
 	struct light_scene_particle_instance particle_instance;
 
 	struct light_scene_particle_emitter_instance particle_emitter_instance;
@@ -98,8 +101,20 @@ struct light_scene_state_instance
 
 };
 
-int light_scene_state_initialize(struct light_scene_state_instance *instance, struct light_scene_state_build *build);
+int light_scene_state_initialize(
+		struct light_scene_state_instance *instance,
+	       	struct light_scene_state_build build
+);
 
-void light_scene_state_dispatch(struct light_scene_state_instance *instance, struct light_scene_state_build *build, struct light_framebuffer *framebuffer, uint32_t width, uint32_t height, float deltatime);
+void light_scene_state_bind(
+		struct light_scene_state_instance *instance
+);
+
+void light_scene_state_dispatch(
+		struct light_scene_state_instance *instance,
+	       	struct light_framebuffer *framebuffer,
+	       	uint32_t width, uint32_t height,
+	       	float deltatime
+);
 
 #endif 

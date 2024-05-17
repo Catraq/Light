@@ -10,10 +10,10 @@
  * is used in the shaders. 
  */
 
-/* Note that the first object/node is for left 
- * and secound for right 
- */
 
+/*
+ * mirrored in gpu. have to correspond with shader input. 
+ */
 enum
 {
 	LIGHT_SCENE_IMPLICIT_UNION 	= 0,
@@ -21,6 +21,9 @@ enum
 	LIGHT_SCENE_IMPLICIT_DIFFERENCE = 2
 };
 
+/*
+ * mirrored in gpu. have to correspond with shader input. 
+ */
 struct light_scene_implicit_object_instance
 {
 	uint32_t levels;
@@ -42,6 +45,9 @@ struct light_scene_implicit_object_instance
 	struct mat4x4 translation_inv;
 };
 
+/*
+ * mirrored in gpu. have to correspond with shader input. 
+ */
 struct light_scene_implicit_object_node
 {
 	uint32_t padding;
@@ -64,7 +70,22 @@ struct light_scene_implicit_object_node
 
 /*
  * mirrored in gpu. have to correspond with shader input. 
- * adjust vertex attribute location if changed. 
+ */
+struct light_scene_particle_emitter_normal
+{
+	struct vec3 position;
+	float lifetime_expected;
+	struct vec3 velocity_expected;
+	float lifetime_variance;	
+	struct vec3 velocity_variance;
+	uint32_t emitter_offset;
+	uint32_t emitter_count;
+	uint32_t padding[3];
+};
+
+
+/*
+ * mirrored in gpu. have to correspond with shader input. 
  */
 struct light_scene_implicit_sphere_instance
 {
@@ -76,7 +97,6 @@ struct light_scene_implicit_sphere_instance
 
 /*
  * mirrored in gpu. have to correspond with shader input. 
- * adjust vertex attribute location if changed. 
  */
 struct light_scene_implicit_cylinder_instance
 {
@@ -94,7 +114,6 @@ struct light_scene_implicit_cylinder_instance
 
 /*
  * mirrored in gpu. have to correspond with shader input. 
- * adjust vertex attribute location if changed. 
  */
 struct light_scene_implicit_box_instance
 {
@@ -109,6 +128,9 @@ struct light_scene_implicit_box_instance
 };
 
 
+/*
+ * mirrored in gpu. have to correspond with shader input. 
+ */
 struct light_scene_light_light_instance
 {
 	struct vec3 position;

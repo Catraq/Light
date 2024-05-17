@@ -139,7 +139,6 @@ layout(binding=6) uniform scene_ubo
 	uint width;
 	uint height;
 	uint dummy[2];
-	mat4 proj;	
 };
 
 float sphere(vec3 p, float r)
@@ -220,7 +219,7 @@ distance_result distance(vec4 p, float t_max)
 	distance_result result;
 	result.min = t_max;
 	
-	
+	#if 1
 	for(uint i = 0; i < EMITTER_COUNT; i++)
 	{
 		for(uint j = 0; j < EMITTER_PARTICLE_COUNT; j++)
@@ -236,6 +235,7 @@ distance_result distance(vec4 p, float t_max)
 		}	
 		
 	}
+	#endif 
 	
 	
 	for(int i = 0; i < objects_count; i++)

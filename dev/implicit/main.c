@@ -103,11 +103,11 @@ int main(int args, char *argv[])
 	
 	
 	/*create a quad as render surface */	
-	struct light_surface quad_surface;
-	result = light_surface_initialize(&quad_surface);
+	struct light_surface_textured quad_surface;
+	result = light_surface_textured_initialize(&quad_surface);
 	if(result <0)
 	{
-		printf("light_surface_initialize(): failed. \n");
+		printf("light_surface_textured_initialize(): failed. \n");
 		exit(EXIT_FAILURE);	
 	}
 	CHECK_GL_ERROR();
@@ -143,9 +143,9 @@ int main(int args, char *argv[])
 	};
 
 	struct light_scene_state_instance state_instance;
-	result = light_scene_state_initialize(&state_instance, &state_build);
+	result = light_scene_state_initialize(&state_instance, state_build);
 	if(result < 0){
-		printf("light_scene_state_initialize() failed. \n");
+		printf("light_scene_state_initialize(): failed. \n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -245,10 +245,10 @@ int main(int args, char *argv[])
 	fps_time_curr = fps_time_last;
 
 		
-	light_scene_implicit_commit_sphere(&state_instance, &state_build, sphere_instance, sphere_count);
-	light_scene_implicit_commit_cylinder(&state_instance, &state_build,  cylinder_instance, cylinder_count);
-	light_scene_implicit_commit_box(&state_instance, &state_build, box_instance, box_count);
-	light_scene_implicit_commit_light(&state_instance, &state_build, light_instance, light_count);
+	light_scene_implicit_commit_sphere(&state_instance, sphere_instance, sphere_count);
+	light_scene_implicit_commit_cylinder(&state_instance, cylinder_instance, cylinder_count);
+	light_scene_implicit_commit_box(&state_instance, box_instance, box_count);
+	light_scene_implicit_commit_light(&state_instance, light_instance, light_count);
 
 
 	struct light_scene_implicit_object_instance object_instance[1+1+1+1];
@@ -356,7 +356,7 @@ int main(int args, char *argv[])
 
 	}
 
-	light_scene_implicit_commit_objects(&state_instance, &state_build, object_instance, 4, object_node, 9);
+	light_scene_implicit_commit_objects(&state_instance, object_instance, 4, object_node, 9);
 
 	struct light_scene_particle_emitter_normal particle_emitter_normal[2];
 
@@ -382,10 +382,12 @@ int main(int args, char *argv[])
 
 	light_scene_particle_emitter_commit_normal(
 		&state_instance, 
-		&state_build,
 		particle_emitter_normal,
 		2
 	);
+
+
+	light_scene_state_bind(&state_instance);
 
 
 	float t = 0.0;
@@ -427,37 +429,33 @@ int main(int args, char *argv[])
 
 		}
 
-		light_scene_implicit_commit_objects(&state_instance, &state_build, object_instance, 4, object_node, 9);
+		light_scene_implicit_commit_objects(&state_instance, object_instance, 4, object_node, 9);
 			
 		int width=256, height=256;		
 		light_scene_bind(&scene, width, height, deltatime);
-		light_scene_state_dispatch(&state_instance, &state_build, &scene.framebuffer, width, height, deltatime);
+		light_scene_state_dispatch(&state_instance, &scene.framebuffer, width, height, deltatime);
 
-#if 0
-		glUseProgram(_light_instance.compute_program);
-		glDispatchCompute(width, height, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-#endif 
+
 		light_platform_resolution(&width, &height);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, width/2, height/2);
 		glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		light_surface_render_textured(&quad_surface, scene.framebuffer.color_texture);
+		light_surface_textured_render(&quad_surface, scene.framebuffer.color_texture);
 		
 		glViewport(width/2, 0, width/2, height/2);
-		light_surface_render_textured(&quad_surface, scene.framebuffer.position_texture);
+		light_surface_textured_render(&quad_surface, scene.framebuffer.position_texture);
 
 		glViewport(0, height/2, width/2, height/2);
-		light_surface_render_textured(&quad_surface, scene.framebuffer.normal_texture);
+		light_surface_textured_render(&quad_surface, scene.framebuffer.normal_texture);
 
 		uint32_t width_ = state_build.particle_build.emitter_particle_count;
 		uint32_t height_ = state_build.particle_build.emitter_count;
 #if 1
 		glViewport(width/2, height/2, width_, height_);
 		uint32_t index = state_instance.particle_instance.buffer_index;
-		light_surface_render_textured(&quad_surface, state_instance.particle_instance.position[index]);
+		light_surface_textured_render(&quad_surface, state_instance.particle_instance.position[index]);
 #endif 
 
 

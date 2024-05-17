@@ -30,6 +30,7 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/frame.c"
 	"${PROJECT_SOURCE_DIR}/src/error.c"
 	"${PROJECT_SOURCE_DIR}/src/surface.c"
+	"${PROJECT_SOURCE_DIR}/src/shader.c"
 	"${PROJECT_SOURCE_DIR}/src/scene/implicit.c"
 	"${PROJECT_SOURCE_DIR}/src/scene/state.c"
 	"${PROJECT_SOURCE_DIR}/src/scene/particle.c"
@@ -46,13 +47,8 @@ set(LIGHT_SOURCES
 
 
 
-#add_subdirectory(dev/kd_tree)
-#add_subdirectory(dev/test)
-#add_subdirectory(dev/particlesystem)
-#add_subdirectory(dev/mesh)
-#add_subdirectory(dev/rope_test)
+add_subdirectory(dev/particlesystem)
 add_subdirectory(dev/implicit)
-#add_subdirectory(dev/physic)
 
 #add_subdirectory(tools/objtoraw)
 #add_subdirectory(tools/rawviewer)

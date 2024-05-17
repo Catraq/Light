@@ -12,18 +12,18 @@ static const GLchar light_vertex_shader_source[] =
 };
 
 
-void light_scene_particle_deinitialize(struct light_scene_particle_instance* instance) 
+void light_scene_particle_deinitialize(struct light_scene_state_instance* instance) 
 {
-	light_surface_deinitialize(&instance->surface);
+	glDeleteProgram(instance->particle_instance.program);
 
-	glDeleteTextures(2, instance->position);
-	glDeleteTextures(2, instance->velocity);
-	glDeleteTextures(2, instance->acceleration);
-	glDeleteFramebuffers(2, instance->framebuffer);
+	glDeleteTextures(2, instance->particle_instance.position);
+	glDeleteTextures(2, instance->particle_instance.velocity);
+	glDeleteTextures(2, instance->particle_instance.acceleration);
+	glDeleteFramebuffers(2, instance->particle_instance.framebuffer);
 	
 }
 
-int light_scene_particle_initialize(struct light_scene_state_instance* instance, struct light_scene_state_build* build) 
+int light_scene_particle_initialize(struct light_scene_state_instance* instance) 
 {
 
 	const char *particle_shader_filename = "../data/particle.txt";
@@ -47,16 +47,16 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 		"#define BOX_COUNT %u \n"
 		"#define CYLINDER_COUNT %u \n"
 		"#define LIGHT_COUNT %u \n",
-		build->particle_build.emitter_count,
-		build->particle_build.emitter_particle_count,
-		build->particle_emitter_build.emitter_normal_count,
-		build->implicit_build.object_node_max_level,
-		build->implicit_build.object_node_count,
-		build->implicit_build.object_count,
-		build->implicit_build.sphere_count,
-		build->implicit_build.box_count,
-		build->implicit_build.cylinder_count,
-		build->implicit_build.light_count
+		instance->build.particle_build.emitter_count,
+		instance->build.particle_build.emitter_particle_count,
+		instance->build.particle_emitter_build.emitter_normal_count,
+		instance->build.implicit_build.object_node_max_level,
+		instance->build.implicit_build.object_node_count,
+		instance->build.implicit_build.object_count,
+		instance->build.implicit_build.sphere_count,
+		instance->build.implicit_build.box_count,
+		instance->build.implicit_build.cylinder_count,
+		instance->build.implicit_build.light_count
 
 	); 
 
@@ -75,29 +75,31 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 	};
 
 
-	int result = light_surface_initialize_vertex_fragement_source(
-			&instance->particle_instance.surface, 
+	instance->particle_instance.program = light_shader_vertex_create(
 			source_vertex, NULL, 1,
 			source_fragment, length_fragment, 2
 	);
 
-	if(result < 0)
+
+	if(instance->particle_instance.program == 0)
 	{
-		fprintf(stderr, "light_surface_initialize_vertex_fragement_source() failed. \n");
+		fprintf(stderr, "light_shader_vertex_create() failed. \n");
 		return -1;	
 	}
 
 	const char *uniform_name = "deltatime";
-	instance->particle_instance.program_deltatime_location = glGetUniformLocation(instance->particle_instance.surface.program, uniform_name);
+	instance->particle_instance.program_deltatime_location = glGetUniformLocation(instance->particle_instance.program, uniform_name);
 	if(instance->particle_instance.program_deltatime_location == -1){
-		light_surface_deinitialize(&instance->particle_instance.surface);
+
+		glDeleteProgram(instance->particle_instance.program);
+
 		fprintf(stderr, "glGetUniformLocation(%s) failed. \n", uniform_name);
 		return -1;
 	} 
 
 
-	uint32_t width = build->particle_build.emitter_particle_count;
-	uint32_t height = build->particle_build.emitter_count;
+	uint32_t width = instance->build.particle_build.emitter_particle_count;
+	uint32_t height = instance->build.particle_build.emitter_count;
 
 
 	for(uint32_t i = 0; i < 2; i++)
@@ -171,28 +173,16 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance,
 	return 0;
 }
 
-void light_scene_particle_simulate(struct light_scene_state_instance* instance, struct light_scene_state_build *build, float deltatime)
+void light_scene_particle_simulate(struct light_scene_state_instance* instance, float deltatime)
 {
 
-
-
-	
 	uint32_t index = instance->particle_instance.buffer_index;
 	glBindFramebuffer(GL_FRAMEBUFFER, instance->particle_instance.framebuffer[(index+1)%2]);
 
-	struct light_surface *surface = &instance->particle_instance.surface;
-
-	glUseProgram(surface->program);
+	glUseProgram(instance->particle_instance.program);
 	glUniform1f(instance->particle_instance.program_deltatime_location, deltatime);
 	
-	uint32_t width = build->particle_build.emitter_particle_count;
-	uint32_t height = build->particle_build.emitter_count;
-
-	glViewport(0, 0, width, height);
-	glBindVertexArray(surface->vertex_array);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surface->element_buffer);
-	glDrawElements(GL_TRIANGLE_STRIP, surface->draw_count, GL_UNSIGNED_INT, 0);	
-	glBindVertexArray(0);
+	light_surface_render(&instance->surface);
 
 	instance->particle_instance.buffer_index = (instance->particle_instance.buffer_index+1)%2; 
 
