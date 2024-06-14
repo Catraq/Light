@@ -130,13 +130,13 @@ int main(int args, char *argv[])
 	struct light_scene_state_build state_build = {
 
 		.implicit_build = {
-			.object_count = 3, 		//Maximum number of objects 
-			.object_node_count = 3,		//Maximum number of node, that objects are made of
+			.object_count = 4, 		//Maximum number of objects 
+			.object_node_count = 8,		//Maximum number of node, that objects are made of
 			.object_node_max_level = 1,	//Objects are trees, max number of levels of the tree.
 			.sphere_count 	= 1,		//Number of sphere nodes 
-			.box_count 	= 1,
+			.box_count 	= 2,
 			.cylinder_count = 1,
-			.light_count 	= 1,		//Number of lights
+			.light_count 	= 2,		//Number of lights
 		},
 		/* 
 		 * A particle emitter owns a range of emitters, first 0 to 1, 2:nd 2 to 5 
@@ -164,7 +164,7 @@ int main(int args, char *argv[])
 	}
 	
 	/* Light is required otherwise everything will be black */	
-	const uint32_t light_count = 1;
+	const uint32_t light_count = 2;
 	struct light_scene_light_light_instance light_instance[light_count];
 	light_instance[0].position = (struct vec3){.x=0.0f, 2.0f, 10.0};
 	light_instance[0].color = (struct vec3){.x=0.0, .y=1.0f, .z=1.0f};
@@ -189,20 +189,22 @@ int main(int args, char *argv[])
 
 
 	/* Something as the floor */
-	const uint32_t box_count = 1;
+	const uint32_t box_count = 2;
 	struct light_scene_implicit_box_instance box_instance[box_count];
 	box_instance[0].dimension = (struct vec3){.x = 40.0f, .y = 0.1f, .z = 40.0f};
 	box_instance[0].color = (struct vec3){.x = 0.0f, .y = 0.0f, .z = 1.0f};
+
+	box_instance[1].dimension = (struct vec3){.x = 10.0f, .y = 1.0f, .z = 10.0f};
+	box_instance[1].color = (struct vec3){.x = 1.0f, .y = 0.0f, .z = 1.0f};
 
 	light_scene_implicit_commit_sphere(&state_instance, sphere_instance, sphere_count);
 	light_scene_implicit_commit_cylinder(&state_instance, cylinder_instance, cylinder_count);
 	light_scene_implicit_commit_box(&state_instance, box_instance, box_count);
 	light_scene_implicit_commit_light(&state_instance, light_instance, light_count);
 
-
 	/* Create the floor object */
-	struct light_scene_implicit_object_instance object_instance[3];
-	struct light_scene_implicit_object_node object_node[3];
+	struct light_scene_implicit_object_instance object_instance[4];
+	struct light_scene_implicit_object_node object_node[8];
 	
 	{
 		struct vec3 center = {.x=0, .y=0, .z=0};
@@ -251,6 +253,22 @@ int main(int args, char *argv[])
 		object_instance[2].index_right = 2;
 		object_instance[2].levels = 1;
 	}
+	{
+		struct vec3 center = {.x=0, .y=0, .z=0};
+		object_node[3].translation = m4x4trs(center);
+		object_node[3].translation_inv = m4x4inv(&object_node[2].translation, &result);
+		object_node[3].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_node[3].object_index = 0;
+
+		struct vec3 box_p= {.x=2, .y=0, .z=5};
+		object_instance[2].translation = m4x4trs(box_p);
+		object_instance[2].translation_inv = m4x4inv(&object_instance[2].translation, &result); 
+		object_instance[2].index_type = LIGHT_SCENE_IMPLICIT_UNION;
+		object_instance[2].index_left = 2;
+		object_instance[2].index_right = 2;
+		object_instance[2].levels = 1;
+	}
+
 
 
 	light_scene_implicit_commit_objects(&state_instance, object_instance, 3, object_node, 3);

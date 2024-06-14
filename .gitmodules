@@ -4,3 +4,6 @@
 [submodule "libs/Linux-Joystick-input"]
 	path = libs/Linux-Joystick-input
 	url = git@github.com:Catraq/Linux-Joystick-input.git
+[submodule "libs/nhgui"]
+	path = libs/nhgui
+	url = https://github.com/Catraq/nhgui.git

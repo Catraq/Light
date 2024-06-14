@@ -60,11 +60,7 @@ int light_scene_state_initialize(struct light_scene_state_instance *instance, st
 
 void light_scene_state_bind(struct light_scene_state_instance *instance)
 {
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, instance->implicit_instance.sphere_buffer);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, instance->implicit_instance.cylinder_buffer);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, instance->implicit_instance.box_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 3, instance->implicit_instance.light_buffer);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 4, instance->implicit_instance.object_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->implicit_instance.object_node_buffer);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 7, instance->particle_emitter_instance.emitter_normal_buffer);
@@ -91,8 +87,9 @@ void light_scene_state_dispatch(struct light_scene_state_instance *instance, str
 
 	glViewport(0, 0, width, height);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
 
 	light_scene_implicit_dispatch(instance, width, height);
-
 
 }

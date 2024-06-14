@@ -27,35 +27,25 @@ int light_scene_particle_initialize(struct light_scene_state_instance* instance)
 {
 
 	const char *particle_shader_filename = "../data/particle.txt";
-	uint8_t particle_shader_source[2*8192];
+	char particle_shader_source[2*8192];
 	size_t read = light_file_read_buffer(particle_shader_filename, particle_shader_source, 2*8192);
 	if(read == 0){
 		fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", particle_shader_filename);
 		return -1;
 	}
 
-	uint8_t particle_shader_source_header[512];
+	char particle_shader_source_header[512];
 	uint32_t gen = snprintf(particle_shader_source_header, 512, 
 		"#version 430 core \n" 
 		"#define EMITTER_COUNT %u \n"
 		"#define EMITTER_PARTICLE_COUNT %u \n"
 		"#define EMITTER_NORMAL_COUNT %u \n"
-		"#define OBJECT_NODE_STACK %u \n"
 		"#define OBJECT_NODE_COUNT %u \n"
-		"#define OBJECT_COUNT %u \n"
-		"#define SPHERE_COUNT %u \n"
-		"#define BOX_COUNT %u \n"
-		"#define CYLINDER_COUNT %u \n"
 		"#define LIGHT_COUNT %u \n",
 		instance->build.particle_build.emitter_count,
 		instance->build.particle_build.emitter_particle_count,
 		instance->build.particle_emitter_build.emitter_normal_count,
-		instance->build.implicit_build.object_node_max_level,
 		instance->build.implicit_build.object_node_count,
-		instance->build.implicit_build.object_count,
-		instance->build.implicit_build.sphere_count,
-		instance->build.implicit_build.box_count,
-		instance->build.implicit_build.cylinder_count,
 		instance->build.implicit_build.light_count
 
 	); 

@@ -7,17 +7,7 @@
 
 struct light_scene_implicit_build
 {
-	uint32_t object_count;
-
 	uint32_t object_node_count; 
-
-	uint32_t object_node_max_level;
-
-	uint32_t sphere_count;
-
-	uint32_t cylinder_count;
-
-	uint32_t box_count;
 
 	uint32_t light_count;
 
@@ -25,15 +15,10 @@ struct light_scene_implicit_build
 
 struct light_scene_implicit_instance
 {
-	GLuint object_buffer;
 	GLuint object_node_buffer;
-	GLuint sphere_buffer;
-	GLuint cylinder_buffer;
-	GLuint box_buffer;
 	GLuint light_buffer;
 
 	GLuint program;
-
 };
 
 
@@ -98,6 +83,8 @@ struct light_scene_state_instance
 	struct light_scene_particle_emitter_instance particle_emitter_instance;
 
 	struct light_scene_implicit_instance implicit_instance;
+
+	GLuint particle_program;
 
 };
 

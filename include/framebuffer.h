@@ -6,7 +6,8 @@
 struct light_framebuffer
 {
 	GLuint framebuffer;
-
+	
+	GLuint depth_texture;
 	GLuint normal_texture;
 	GLuint position_texture;
 	GLuint color_texture;

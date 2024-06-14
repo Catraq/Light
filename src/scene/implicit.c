@@ -1,5 +1,7 @@
 #include "scene/implicit.h"
 
+#include "error.h"
+
 static const GLchar light_vertex_shader_source[] = 
 {
 	"#version 430 core 					\n"
@@ -30,21 +32,11 @@ int light_scene_implicit_initialize(struct light_scene_state_instance *instance)
 			"#version 430 core \n" 
 			"#define EMITTER_COUNT %u \n"
 			"#define EMITTER_PARTICLE_COUNT %u \n"
-			"#define OBJECT_NODE_STACK %u \n"
 			"#define OBJECT_NODE_COUNT %u \n"
-			"#define OBJECT_COUNT %u \n"
-			"#define SPHERE_COUNT %u \n"
-			"#define BOX_COUNT %u \n"
-			"#define CYLINDER_COUNT %u \n"
 			"#define LIGHT_COUNT %u \n",
 			instance->build.particle_build.emitter_count,
 			instance->build.particle_build.emitter_particle_count,
-			instance->build.implicit_build.object_node_max_level,
 			instance->build.implicit_build.object_node_count,
-			instance->build.implicit_build.object_count,
-			instance->build.implicit_build.sphere_count,
-			instance->build.implicit_build.box_count,
-			instance->build.implicit_build.cylinder_count,
 			instance->build.implicit_build.light_count
 
 		); 
@@ -75,28 +67,6 @@ int light_scene_implicit_initialize(struct light_scene_state_instance *instance)
 
 	}
 
-
-	uint32_t sphere_buffer_size = sizeof(struct light_scene_implicit_sphere_instance) * instance->build.implicit_build.sphere_count + 4*sizeof(uint32_t);
-	GLuint sphere_buffer;
-	glGenBuffers(1, &sphere_buffer);
-	glBindBuffer(GL_UNIFORM_BUFFER, sphere_buffer);
-	glBufferData(GL_UNIFORM_BUFFER,  sphere_buffer_size, NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-	uint32_t cylinder_buffer_size = sizeof(struct light_scene_implicit_cylinder_instance) * instance->build.implicit_build.cylinder_count + 4*sizeof(uint32_t);
-	GLuint cylinder_buffer;
-	glGenBuffers(1, &cylinder_buffer);
-	glBindBuffer(GL_UNIFORM_BUFFER, cylinder_buffer);
-	glBufferData(GL_UNIFORM_BUFFER, cylinder_buffer_size, NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-	uint32_t box_buffer_size = sizeof(struct light_scene_implicit_box_instance) * instance->build.implicit_build.box_count + 4*sizeof(uint32_t);	
-	GLuint box_buffer;
-	glGenBuffers(1, &box_buffer);
-	glBindBuffer(GL_UNIFORM_BUFFER, box_buffer);
-	glBufferData(GL_UNIFORM_BUFFER, box_buffer_size, NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
 	uint32_t light_buffer_size = sizeof(struct light_scene_light_light_instance) * instance->build.implicit_build.light_count + 4*sizeof(uint32_t);
 	GLuint light_buffer;
 	glGenBuffers(1, &light_buffer);
@@ -104,85 +74,48 @@ int light_scene_implicit_initialize(struct light_scene_state_instance *instance)
 	glBufferData(GL_UNIFORM_BUFFER, light_buffer_size, NULL, GL_STATIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	
-	/* See shader source for structure of matrix */	
-	uint32_t object_buffer_size = sizeof(struct light_scene_implicit_object_instance) * instance->build.implicit_build.object_count + 4*sizeof(uint32_t);
-	GLuint object_buffer;
-	glGenBuffers(1, &object_buffer);
-	glBindBuffer(GL_UNIFORM_BUFFER, object_buffer);
-	glBufferData(GL_UNIFORM_BUFFER, object_buffer_size, NULL, GL_STATIC_DRAW);
 	
-
-	uint32_t object_node_buffer_size = sizeof(struct light_scene_implicit_object_node) * instance->build.implicit_build.object_node_count + 4*sizeof(uint32_t);	
+	uint32_t object_node_buffer_size = sizeof(struct light_scene_implicit_object) * instance->build.implicit_build.object_node_count + 4*sizeof(uint32_t);	
 	GLuint object_node_buffer;
 	glGenBuffers(1, &object_node_buffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, object_node_buffer);
 	glBufferData(GL_UNIFORM_BUFFER, object_node_buffer_size,  NULL, GL_STATIC_DRAW);
 	
-	instance->implicit_instance.object_buffer 		= object_buffer;
-	instance->implicit_instance.object_node_buffer 	= object_node_buffer;
-	instance->implicit_instance.sphere_buffer		= sphere_buffer;
-	instance->implicit_instance.cylinder_buffer	= cylinder_buffer;
-	instance->implicit_instance.box_buffer		= box_buffer;
-	instance->implicit_instance.light_buffer		= light_buffer;
+	instance->implicit_instance.object_node_buffer = object_node_buffer;
+	instance->implicit_instance.light_buffer = light_buffer;
 
 	return 0;
 }
 
 void light_scene_implicit_commit_objects(
-	struct light_scene_state_instance  *instance,
-	struct light_scene_implicit_object_instance *object_instance, uint32_t object_instance_count, 
-	struct light_scene_implicit_object_node *object_node, uint32_t object_node_count
+	struct light_scene_state_instance *instance,
+	struct light_scene_implicit_object *object_node,
+       	uint32_t object_node_count
 )
 {
+	
+	glBindBuffer(
+		GL_UNIFORM_BUFFER,
+		instance->implicit_instance.object_node_buffer
+	);
 
+	glBufferSubData(
+		GL_UNIFORM_BUFFER, 
+		0,
+		sizeof(struct light_scene_implicit_object)*object_node_count, 
+		object_node
+	);
 
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->implicit_instance.object_buffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_instance)*object_instance_count, object_instance);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_instance)*instance->build.implicit_build.object_count, sizeof(uint32_t), &object_instance_count);
-
-
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->implicit_instance.object_node_buffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_object_node)*object_node_count, object_node);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_object_node)*instance->build.implicit_build.object_node_count, sizeof(uint32_t), &object_node_count);
+	glBufferSubData(
+		GL_UNIFORM_BUFFER, 
+		sizeof(struct light_scene_implicit_object)*instance->build.implicit_build.object_node_count, 
+		sizeof(uint32_t), 
+		&object_node_count
+	);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-}
 
-void light_scene_implicit_commit_sphere(
-	struct light_scene_state_instance  *instance,
-	struct light_scene_implicit_sphere_instance *sphere,
-	uint32_t sphere_count
-)
-{
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->implicit_instance.sphere_buffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_sphere_instance) * sphere_count, sphere);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_sphere_instance) * instance->build.implicit_build.sphere_count, sizeof(uint32_t),  &sphere_count);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-}
-
-void light_scene_implicit_commit_cylinder(
-	struct light_scene_state_instance  *instance,
-	struct light_scene_implicit_cylinder_instance *cylinder,
-	uint32_t cylinder_count
-)
-{
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->implicit_instance.cylinder_buffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_cylinder_instance) * cylinder_count, cylinder);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_cylinder_instance) * instance->build.implicit_build.cylinder_count, sizeof(uint32_t), &cylinder_count);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-}
-
-
-void light_scene_implicit_commit_box(
-	struct light_scene_state_instance  *instance,
-	struct light_scene_implicit_box_instance *box,
-	uint32_t box_count
-)
-{
-	glBindBuffer(GL_UNIFORM_BUFFER, instance->implicit_instance.box_buffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(struct light_scene_implicit_box_instance) * box_count, box);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(struct light_scene_implicit_box_instance) * instance->build.implicit_build.box_count, sizeof(uint32_t), &box_count);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	CHECK_GL_ERROR();
 }
 
 void light_scene_implicit_commit_light(
@@ -202,7 +135,6 @@ void light_scene_implicit_dispatch(
 	uint32_t width, uint32_t height
 )
 {
-	
 	glUseProgram(instance->implicit_instance.program);
 	light_surface_render(&instance->surface);
 
@@ -213,12 +145,6 @@ void light_scene_implicit_deinitialize(
 )
 {
 	glDeleteProgram(instance->implicit_instance.program);
-
-	glDeleteBuffers(1, &instance->implicit_instance.sphere_buffer);
-	glDeleteBuffers(1, &instance->implicit_instance.cylinder_buffer);
-	glDeleteBuffers(1, &instance->implicit_instance.box_buffer);
 	glDeleteBuffers(1, &instance->implicit_instance.light_buffer);
-	
-	glDeleteBuffers(1, &instance->implicit_instance.object_buffer);
 	glDeleteBuffers(1, &instance->implicit_instance.object_node_buffer);
 }

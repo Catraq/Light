@@ -48,6 +48,14 @@ int light_framebuffer_initialize(struct light_framebuffer *framebuffer, int widt
 
 	CHECK_GL_ERROR();
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, color_texture, 0);	
+	
+	GLuint depth_texture;
+	glGenRenderbuffers(1, &depth_texture);
+	glBindRenderbuffer(GL_RENDERBUFFER, depth_texture);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);	
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_texture);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
 
 	GLenum buffers[] = {
 		GL_COLOR_ATTACHMENT0,
@@ -58,8 +66,11 @@ int light_framebuffer_initialize(struct light_framebuffer *framebuffer, int widt
 	CHECK_GL_ERROR();
 	glDrawBuffers(3, buffers);
 
+
 	
+
 	framebuffer->framebuffer 	= frame_buffer;
+	framebuffer->depth_texture	= depth_texture;
 	framebuffer->normal_texture 	= normal_texture;
 	framebuffer->position_texture 	= position_texture;
 	framebuffer->color_texture 	= color_texture;
@@ -81,6 +92,7 @@ int light_framebuffer_initialize(struct light_framebuffer *framebuffer, int widt
 void light_framebuffer_deinitialize(struct light_framebuffer *framebuffer)
 {
 	glDeleteFramebuffers(1, &framebuffer->framebuffer);
+	glDeleteRenderbuffers(1, &framebuffer->depth_texture);
 	glDeleteTextures(1, &framebuffer->normal_texture);
 	glDeleteTextures(1, &framebuffer->position_texture);
 	glDeleteTextures(1, &framebuffer->color_texture);
@@ -103,6 +115,9 @@ void light_framebuffer_resize(struct light_framebuffer *framebuffer, int width, 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 
 
+	glBindRenderbuffer(GL_RENDERBUFFER, framebuffer->depth_texture);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, width, height);	
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 }
 

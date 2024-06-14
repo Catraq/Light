@@ -42,20 +42,9 @@ set(LIGHT_SOURCES
 
 )
 
-#add_executable(${PROJECT_NAME} ${LIGHT_SOURCES} src/main.c)
-#set_property(TARGET light PROPERTY C_STANDARD 11)
 
-
-
-add_subdirectory(dev/particlesystem)
+add_subdirectory(libs/nhgui)
+#add_subdirectory(dev/particlesystem)
 add_subdirectory(dev/implicit)
-
-#add_subdirectory(tools/objtoraw)
-#add_subdirectory(tools/rawviewer)
-
-#target_link_libraries(${PROJECT_NAME} m)
-#target_link_libraries(${PROJECT_NAME} pthread)
-#target_link_libraries(${PROJECT_NAME} ${GLEW_LIBRARIES})
-#target_link_libraries(${PROJECT_NAME} glfw)
-#target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES})
+#add_subdirectory(dev/light)
 

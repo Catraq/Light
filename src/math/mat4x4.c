@@ -103,9 +103,9 @@ struct mat4x4 m4x4pers(float ratio, float fov, float near, float far)
 
 	result.m[0]  = 1.0f / ( length * ratio );
 	result.m[5]  = 1.0f / length;
-	result.m[10] = ( - near - far ) / range;
+	result.m[10] = (near + far) / range;
 	result.m[11] = 1.0f;	
-	result.m[14] = 2.0f * far * near / range;
+	result.m[14] = -2.0f * far * near / range;
 
 	return result;
 }

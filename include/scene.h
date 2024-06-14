@@ -33,11 +33,19 @@ struct light_scene_instance
 };
 
 
-int light_scene_initialize(struct light_scene_instance *instance);
+int light_scene_initialize(
+		struct light_scene_instance *instance,
+		struct light_platform *platform
+);
+
 void light_scene_deinitialize(struct light_scene_instance *instance);
 
-int light_scene_bind_program(struct light_scene_instance *instance, GLint program);
-int light_scene_bind(struct light_scene_instance *instance, uint32_t width, uint32_t height, const float deltatime);
+int light_scene_bind(
+		struct light_scene_instance *instance,
+		struct light_platform *platform, 
+	       	uint32_t width, uint32_t height,
+	       	const float deltatime
+);
 
 
 #endif 

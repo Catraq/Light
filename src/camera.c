@@ -8,7 +8,6 @@ struct glsl_view_buffer{
 	uint32_t width;
 	uint32_t height;
 	uint32_t dummy[2];
-
 };
 
 
@@ -31,6 +30,8 @@ int light_camera_buffer_bind(struct light_camera_view_state *view_state)
 
 void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32_t width, uint32_t height)
 {
+	float ratio = (float)width/(float)height;
+	struct mat4x4 proj = m4x4pers(ratio, view_state->fov, view_state->near, view_state->far);
 
 	/* Translate camera */
 	struct mat4x4 rotation = m4x4rote(view_state->rotation);

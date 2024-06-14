@@ -1,15 +1,18 @@
 #include "frame.h"
 
 
-struct light_frame_info light_frame_info_update(struct light_frame_info *prev)
+struct light_frame_info light_frame_info_update(
+		struct light_frame_info *prev,
+		struct light_platform *platform
+		)
 {
 	struct light_frame_info result = {};
 	
 	struct vec2 mouse;
-	light_platform_mouse(&mouse);
+	light_platform_mouse(platform, &mouse);
 
 	uint32_t width, height;
-	light_platform_resolution(&width, &height);
+	light_platform_window_resolution(platform, &width, &height);
 
 	result.mouse = mouse;
 	

@@ -11,7 +11,7 @@ static void light_scene_view_initialize(struct light_camera_view_state *view_sta
 	const float fov = 3.14f/2.0f;
 
 	view_state->fov = fov;
-	view_state->near = 0.0f;
+	view_state->near = 0.1f;
 	view_state->far = 100.0f;
 	
 	//Setup camera. 
@@ -31,7 +31,10 @@ void light_scene_deinitialize(struct light_scene_instance *instance)
 }
 
 
-int light_scene_initialize(struct light_scene_instance *instance)
+int light_scene_initialize(
+		struct light_scene_instance *instance,
+	       	struct light_platform *platform
+)
 {
 	int result = 0;
 
@@ -44,7 +47,11 @@ int light_scene_initialize(struct light_scene_instance *instance)
 	}
 
 
-	struct light_frame_info frame_info = light_frame_info_update(NULL);
+	struct light_frame_info frame_info = light_frame_info_update(
+			NULL,
+			platform
+	);
+
 	light_scene_view_initialize(&instance->view_state, frame_info.width, frame_info.height);
 	CHECK_GL_ERROR();
 
@@ -62,13 +69,29 @@ int light_scene_initialize(struct light_scene_instance *instance)
 	return 0;
 }
 
-int light_scene_bind(struct light_scene_instance *instance, uint32_t width, uint32_t height, const float deltatime)
+int light_scene_bind(
+		struct light_scene_instance *instance,
+	       	struct light_platform *platform,
+	       	uint32_t width, uint32_t height,
+	       	const float deltatime)
 {	
-	struct light_frame_info frame_result = light_frame_info_update(&instance->frame_info);
+	struct light_frame_info frame_result = light_frame_info_update(
+			&instance->frame_info,
+			platform
+	);
+
 	struct vec2 delta_mouse = light_frame_info_mouse_delta(&frame_result, &instance->frame_info);
 	instance->frame_info = frame_result; 
 
-	light_camera_input_update(&instance->update_state, &instance->view_state, 10.0f, delta_mouse, deltatime);
+	light_camera_input_update(
+			&instance->update_state,
+		       	&instance->view_state,
+		       	platform,
+		       	10.0f,
+		       	delta_mouse, 
+			deltatime
+	);
+
 	CHECK_GL_ERROR();
 
 	light_camera_view_matrix(&instance->view_state, width, height);

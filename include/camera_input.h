@@ -13,8 +13,18 @@ struct light_camera_update_state
 	int dummy;
 };
 
-int light_camera_input_initialize(struct light_camera_update_state *state);
-int light_camera_input_update(struct light_camera_update_state *state, struct light_camera_view_state *camera_view, const float speed, const struct vec2 mouse_delta, const float deltatime);
+int light_camera_input_initialize(
+		struct light_camera_update_state *state
+);
+
+int light_camera_input_update(
+		struct light_camera_update_state *state,
+	       	struct light_camera_view_state *camera_view, 
+		struct light_platform *platform,
+		const float speed, 
+		const struct vec2 mouse_delta,
+	      	const float deltatime
+);
 
 
 #endif //CAMERA_INPUT_H

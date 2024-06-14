@@ -14,7 +14,10 @@ struct light_frame_info
 	uint32_t height;
 };
 
-struct light_frame_info light_frame_info_update(struct light_frame_info *prev);
+struct light_frame_info light_frame_info_update(
+		struct light_frame_info *prev,
+		struct light_platform *platform
+);
 
 struct vec2 light_frame_info_mouse_delta(struct light_frame_info *curr, struct light_frame_info *prev);
 

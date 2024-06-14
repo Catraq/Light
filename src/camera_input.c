@@ -11,12 +11,18 @@ int light_camera_input_initialize(struct light_camera_update_state *state)
 }
 
 
-int light_camera_input_update(struct light_camera_update_state *state, struct light_camera_view_state *view_state, const float speed,  const struct vec2 mouse_delta, const float deltatime)
+int light_camera_input_update(
+		struct light_camera_update_state *state,
+	       	struct light_camera_view_state *view_state,
+		struct light_platform *platform,
+	       	const float speed,
+	      	const struct vec2 mouse_delta,
+	       	const float deltatime)
 {
 	struct vec3 delta = {0.0f,0.0f,0.0f}; 
 	const float speed_dt = deltatime * speed;
 			
-	if(light_platform_key(GLFW_KEY_W) == PLATFORM_PRESS){
+	if(light_platform_key(platform, GLFW_KEY_W) == PLATFORM_PRESS){
 
 		struct vec3 direction = view_state->rotation;
 		struct vec3 result = {0.0f, 0.0f, 0.0f};
@@ -29,7 +35,7 @@ int light_camera_input_update(struct light_camera_update_state *state, struct li
 		view_state->position = v3add(view_state->position, result);
 	}
 	
-	if(light_platform_key(GLFW_KEY_S) == PLATFORM_PRESS){
+	if(light_platform_key(platform, GLFW_KEY_S) == PLATFORM_PRESS){
 
 		struct vec3 direction = view_state->rotation;
 		struct vec3 result = {0.0f, 0.0f, 0.0f};
@@ -42,7 +48,7 @@ int light_camera_input_update(struct light_camera_update_state *state, struct li
 		view_state->position = v3add(view_state->position, result);
 
 	}
-	if(light_platform_key(GLFW_KEY_A) == PLATFORM_PRESS){
+	if(light_platform_key(platform, GLFW_KEY_A) == PLATFORM_PRESS){
 
 		struct vec3 direction = view_state->rotation;
 		struct vec3 result = {0.0f, 0.0f, 0.0f};
@@ -53,7 +59,7 @@ int light_camera_input_update(struct light_camera_update_state *state, struct li
 		result = v3scl(result,  speed_dt);
 		view_state->position = v3add(view_state->position, result);
 	}
-	if(light_platform_key(GLFW_KEY_D) == PLATFORM_PRESS){
+	if(light_platform_key(platform, GLFW_KEY_D) == PLATFORM_PRESS){
 
 		struct vec3 direction = view_state->rotation;
 		struct vec3 result = {0.0f, 0.0f, 0.0f};
@@ -65,7 +71,7 @@ int light_camera_input_update(struct light_camera_update_state *state, struct li
 		view_state->position = v3add(view_state->position, result);
 	}
 	
-	if(light_platform_mouse_key(GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS){
+	if(light_platform_mouse_key(platform, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS){
 		struct vec3 delta = {mouse_delta.y, mouse_delta.x, 0.0f};
 		view_state->rotation = v3add(view_state->rotation, delta);
 	}

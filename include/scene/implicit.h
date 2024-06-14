@@ -23,28 +23,8 @@ void light_scene_implicit_dispatch(
 
 void light_scene_implicit_commit_objects(
 	       	struct light_scene_state_instance  *instance,
-	       	struct light_scene_implicit_object_instance *object_instance, uint32_t object_instance_count, 
-	       	struct light_scene_implicit_object_node *object_node, uint32_t object_node_count
-);
-
-void light_scene_implicit_commit_sphere(
-	       	struct light_scene_state_instance  *instance,
-	       	struct light_scene_implicit_sphere_instance *sphere,
-	       	uint32_t sphere_count
-);
-
-
-void light_scene_implicit_commit_cylinder(
-	       	struct light_scene_state_instance  *instance,
-	       	struct light_scene_implicit_cylinder_instance *cylinder,
-	       	uint32_t cylinder_count
-);
-
-
-void light_scene_implicit_commit_box(
-	       	struct light_scene_state_instance  *instance,
-	       	struct light_scene_implicit_box_instance *box,
-	       	uint32_t box_count
+	       	struct light_scene_implicit_object *object_node,
+		uint32_t object_node_count
 );
 	
 void light_scene_implicit_commit_light(
