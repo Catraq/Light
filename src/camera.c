@@ -11,14 +11,27 @@ struct glsl_view_buffer{
 };
 
 
-void light_camera_initialize(struct light_camera_view_state *view_state)
+int light_camera_initialize(
+		struct light_camera_view_state *view_state
+)
 {
 
 	glGenBuffers(1, &view_state->camera_buffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, view_state->camera_buffer);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(struct glsl_view_buffer), 0, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	return 0;
 }
+
+void light_camera_deinitialize(
+		struct light_camera_view_state *view_state
+)
+{
+
+	glDeleteBuffers(1, &view_state->camera_buffer);
+}
+
 
 
 int light_camera_buffer_bind(struct light_camera_view_state *view_state)

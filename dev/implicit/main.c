@@ -34,63 +34,6 @@
 #include "physic/physic.c"
 #include "physic/physic_rope.c"
 
-struct light_scene_object
-{
-	struct vec3 scale;
-	struct vec3 rotation;
-	struct vec3 position;
-};
-
-GLuint light_shader_compute_create(const GLchar **source, GLint *length, uint32_t count)
-{
-	GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
-	if(compute_shader == 0)
-	{
-		fprintf(stderr, "glCreateShader(GL_COMPUTE_SHADER) failed.");
-		return -1;
-	}
-
-	glShaderSource(compute_shader, count, source , length);
-	glCompileShader(compute_shader);
-	
-	GLint compiled = GL_FALSE;
-	glGetShaderiv(compute_shader, GL_COMPILE_STATUS, &compiled);
-	if(compiled == GL_FALSE){
-
-		GLchar log[8192];
-		GLsizei length;
-		glGetShaderInfoLog(compute_shader, 8192, &length, log);
-		if( length != 0 )
-		{
-			fprintf(stderr, " ---- Compilation of shader failed.  ---- \n %s \n", log);
-		}
-
-		glDeleteShader(compute_shader);
-
-		return 0;
-	}
-	
-	GLuint compute_program = glCreateProgram();
-	glAttachShader(compute_program, compute_shader);
-	glLinkProgram(compute_program);
-	
-	glDeleteShader(compute_shader);
-	
-	GLint linked = GL_FALSE;
-	glGetProgramiv(compute_program, GL_LINK_STATUS, &linked);
-	if(linked == GL_FALSE) {
-		GLsizei length;
-		GLchar log[8192];
-		glGetProgramInfoLog(compute_program, 8192, &length, log);
-		fprintf(stderr, " ---- Linking of program failed ---- \n %s \n", log);
-
-		glDeleteProgram(compute_program);
-		return 0;
-	}
-
-
-	return compute_program;
-}
 
 
 
@@ -125,6 +68,10 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+
+	glfwSetInputMode(platform.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+	glfwSetCharCallback(platform.window, nhgui_glfw_char_callback);
+
 	struct nhgui_object_font gui_font = {};
 	struct nhgui_render_attribute gui_font_attribute = {
 		.height_mm = 10,	
@@ -157,19 +104,12 @@ int main(int args, char *argv[])
 	}
 	
 	struct nhgui_window gui_window = {};
-	struct nhgui_object_text_list gui_object_list;
+	struct light_scene_object_nhgui_edit object_nhgui_edit = {};
 	struct nhgui_glfw_frame gui_frame = nhgui_frame_create(platform.window);
-	
-	gui_object_list = (struct nhgui_object_text_list){
-		.char_scroll_per_sec = 1,
-		.text_color = {.x = 1.0, .y = 1.0, .z = 1.0},	
-		.field_color = {.x = 0.0, .y = 0.0, .z = 0.0},	
-		.selected_text_color = {.x = 0.0, .y = 0.0, .z = 0.0},	
-		.selected_field_color = {.x = 1.0, .y = 1.0, .z = 1.0},	
-	
-	};
 
-	
+
+	light_scene_object_nhgui_edit_initialize(&object_nhgui_edit);
+
 	/*create a quad as render surface */	
 	struct light_surface_textured quad_surface;
 	result = light_surface_textured_initialize(&quad_surface);
@@ -179,17 +119,8 @@ int main(int args, char *argv[])
 		exit(EXIT_FAILURE);	
 	}
 	CHECK_GL_ERROR();
-	
-	struct light_scene_instance scene;
-	result = light_scene_initialize(&scene, &platform);
-	if(result < 0)
-	{
-		printf("light_scene_initialize(): failed. \n");
-		exit(EXIT_FAILURE);
-	}
 
-	CHECK_GL_ERROR();
-	
+
 	struct light_scene_state_build state_build = {
 
 		.implicit_build = {
@@ -205,12 +136,19 @@ int main(int args, char *argv[])
 		},
 	};
 
-	struct light_scene_state_instance state_instance;
-	result = light_scene_state_initialize(&state_instance, state_build);
-	if(result < 0){
-		printf("light_scene_state_initialize(): failed. \n");
+	struct light_scene_instance scene;
+	result = light_scene_initialize(
+			&scene,
+		       	&platform,
+			state_build
+	);
+
+	if(result < 0)
+	{
+		printf("light_scene_initialize(): failed. \n");
 		exit(EXIT_FAILURE);
 	}
+
 
 	
 	const uint32_t light_count = 1;
@@ -222,7 +160,7 @@ int main(int args, char *argv[])
 
 	light_instance[0].color = (struct vec3){.x=1.0, .y=0.1f, .z=1.0f};
 
-	light_scene_implicit_commit_light(&state_instance, light_instance, light_count);
+	light_scene_implicit_commit_light(&scene.state_instance, light_instance, light_count);
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
@@ -230,57 +168,31 @@ int main(int args, char *argv[])
 
 	
 
-	
-	uint32_t object_node_size = 3;
-	struct light_scene_implicit_object object_node[object_node_size];
 
-	{
-		struct vec3 p0 = {.x = 0.0, .y = 0.0, .z = 10.0};
-		object_node[0].translation = m4x4trs(p0);
-		object_node[0].translation_inv = m4x4inv(&object_node[0].translation, &result); 
-		object_node[0].object_index = 0;
-
-		struct vec3 p1 = {.x = 3.0, .y = 0.0, .z = 10.0};
-		object_node[1].translation = m4x4trs(p1);
-		object_node[1].translation_inv = m4x4inv(&object_node[1].translation, &result); 
-		object_node[1].object_index = 1;
-
-		struct vec3 p2 = {.x = 6.0, .y = 0.0, .z = 10.0};
-		object_node[2].translation = m4x4trs(p2);
-		object_node[2].translation_inv = m4x4inv(&object_node[2].translation, &result); 
-		object_node[2].object_index = 2;
-
-		light_scene_implicit_commit_objects(
-				&state_instance,
-			       	object_node, 
-				object_node_size
-		);
-
-	}
-
-
-
-	uint32_t object_count = object_node_size;
 	const uint32_t object_size = 10;
+	const uint32_t object_count = 3;
+
+	struct light_scene_object objects[object_size];
+	memset(objects, 0, sizeof(objects));
+
+	objects[0].position = (struct vec3){.x=0, .y=0, .z=10};
+	objects[0].scale= (struct vec3){.x=1, .y=1, .z=1};
+	objects[0].object_index = 0;
+
+	objects[1].position = (struct vec3){.x=3, .y=0, .z=10};
+	objects[1].scale= (struct vec3){.x=1, .y=1, .z=1};
+	objects[1].object_index = 1;
+
+	objects[2].position = (struct vec3){.x=6, .y=0, .z=10};
+	objects[2].scale= (struct vec3){.x=1, .y=1, .z=1};
+	objects[2].object_index = 2;
+
+	light_scene_object_commit(&scene.state_instance, objects, object_count);
 
 
-	const uint32_t object_name_size = 32;
-	char object_name[object_size][object_name_size];
-	uint32_t object_name_length[object_size];
-	char *object_name_ptr[object_size];
-
-	for(uint32_t i = 0; i < object_count; i++){
-		result = snprintf(object_name[i], object_name_size, "Object(%u)", i);
-		if(result < 0){
-			fprintf(stderr, "snprintf failed. Check buffer size. \n");
-			return -1;	
-		}
-		object_name_length[i] = result;
-		object_name_ptr[i] = &object_name[i];	
-	}
 
 
-	light_scene_state_bind(&state_instance);
+	light_scene_state_bind(&scene.state_instance);
 
 	uint32_t 	fps_frame_count 	= 0;
 	float 		fps_sample_interval 	= 5.0f;	
@@ -291,7 +203,8 @@ int main(int args, char *argv[])
 	gettimeofday(&fps_time_last, NULL);
 	fps_time_curr = fps_time_last;
 
-		
+	float test = 0.0f;	
+
 	while(!light_platform_exit(&platform))
     	{
 		struct timeval fps_time_curr_tmp;
@@ -317,7 +230,7 @@ int main(int args, char *argv[])
 		light_platform_window_resolution(&platform, &width, &height);
 
 		light_scene_bind(&scene, &platform, width, height, deltatime);
-		light_scene_state_dispatch(&state_instance, &scene.framebuffer, width, height, deltatime);
+		light_scene_state_dispatch(&scene.state_instance, &scene.framebuffer, width, height, deltatime);
 
 
 
@@ -330,7 +243,7 @@ int main(int args, char *argv[])
 			       	platform.window
 		);
 	
-		float menu_width_mm = 50;
+		float menu_width_mm = 80;
 		float menu_font_mm = 3;
 
 		float pixel_per_mm = (float)gui_context.screen_resolution_y/(float)gui_context.screen_height_mm;
@@ -355,6 +268,7 @@ int main(int args, char *argv[])
 			.width_mm = menu_width_mm,
 			.height_mm = menu_font_mm, 
 		};
+
 		
 		/* Start point of the rendering */
 		struct nhgui_result result = {
@@ -370,25 +284,26 @@ int main(int args, char *argv[])
 			result
 		);
 
-		result = nhgui_object_text_list(
-			&gui_object_list,
-			&gui_context, 
-			object_name_ptr,
-			object_name_length,
-			object_count, 
-			&gui_font, 
-			&gui_list_attribute,
-			&gui_input, 
-			result
+		
+		result = light_scene_object_nhgui_edit(
+				&object_nhgui_edit,
+				&gui_context,
+				&gui_font,
+				&gui_input,
+				result, 	
+				menu_width_mm,
+				menu_font_mm,
+				objects,
+				object_count
 		);
-		
-		result = nhgui_result_dec_y(result);
 
-		if(gui_object_list.selected > 0)
-		{
-			
-		
-		}
+
+		light_scene_object_commit(
+				&scene.state_instance,
+			       	objects, 
+				object_count
+		);
+
 
 
 

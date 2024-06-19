@@ -22,7 +22,14 @@ struct light_camera_view_state
 	GLuint camera_buffer;
 };
 
-void light_camera_initialize(struct light_camera_view_state *view_state);
+int light_camera_initialize(
+		struct light_camera_view_state *view_state
+);
+
+void light_camera_deinitialize(
+		struct light_camera_view_state *view_state
+);
+
 int light_camera_buffer_bind(struct light_camera_view_state *view_state);
 void light_camera_view_matrix(struct light_camera_view_state *view_state, uint32_t width, uint32_t height);
 

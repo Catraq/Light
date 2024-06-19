@@ -38,7 +38,15 @@ struct mat4x4 m4x4trs(struct vec3 pos)
 
 	return result;
 }
+struct mat4x4 m4x4scl(struct vec3 scale)
+{
+	struct mat4x4 result = m4x4id();
 
+	result.m[0] = scale.x;
+	result.m[5] = scale.y;
+	result.m[10] = scale.z;
+	return result;
+}
 struct mat4x4 m4x4rotq(struct quaternion q)
 {
 	struct mat4x4 result = {};

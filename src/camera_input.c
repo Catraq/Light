@@ -4,13 +4,6 @@
 #include "camera_input.h"
 
 
-int light_camera_input_initialize(struct light_camera_update_state *state)
-{
-
-	return 0;
-}
-
-
 int light_camera_input_update(
 		struct light_camera_update_state *state,
 	       	struct light_camera_view_state *view_state,

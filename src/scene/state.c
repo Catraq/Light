@@ -4,7 +4,10 @@
 #include "scene/particle_emitter.h"
 #include "scene/implicit.h"
 
-int light_scene_state_initialize(struct light_scene_state_instance *instance, struct light_scene_state_build build)
+int light_scene_state_initialize(
+		struct light_scene_state_instance *instance,
+	       	struct light_scene_state_build build
+)
 {
 	int result = 0;
 	
@@ -44,9 +47,7 @@ int light_scene_state_initialize(struct light_scene_state_instance *instance, st
 	{
 
 		light_surface_deinitialize(&instance->surface);
-
 		light_scene_implicit_deinitialize(instance);
-
 		light_scene_particle_deinitialize(instance);
 
 		printf("light_scene_particle_emitter_initialize() failed. \n");
@@ -57,6 +58,16 @@ int light_scene_state_initialize(struct light_scene_state_instance *instance, st
 	return 0;
 }
 
+void light_scene_state_deinitialize(
+		struct light_scene_state_instance *instance
+)
+{
+	light_surface_deinitialize(&instance->surface);
+	light_scene_implicit_deinitialize(instance);
+	light_scene_particle_deinitialize(instance);
+	light_scene_particle_emitter_deinitialize(instance);
+}
+	       	
 
 void light_scene_state_bind(struct light_scene_state_instance *instance)
 {

@@ -13,9 +13,6 @@ struct light_camera_update_state
 	int dummy;
 };
 
-int light_camera_input_initialize(
-		struct light_camera_update_state *state
-);
 
 int light_camera_input_update(
 		struct light_camera_update_state *state,

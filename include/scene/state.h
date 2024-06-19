@@ -93,6 +93,11 @@ int light_scene_state_initialize(
 	       	struct light_scene_state_build build
 );
 
+void light_scene_state_deinitialize(
+		struct light_scene_state_instance *instance
+);
+
+
 void light_scene_state_bind(
 		struct light_scene_state_instance *instance
 );
