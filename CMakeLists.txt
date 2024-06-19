@@ -26,6 +26,7 @@ set(LIGHT_SOURCES
 	"${PROJECT_SOURCE_DIR}/src/math/vec.c"
 	"${PROJECT_SOURCE_DIR}/src/math/quaternion.c"
 	"${PROJECT_SOURCE_DIR}/src/scene.c"
+	"${PROJECT_SOURCE_DIR}/src/scene_gui.c"
 	"${PROJECT_SOURCE_DIR}/src/camera.c"
 	"${PROJECT_SOURCE_DIR}/src/frame.c"
 	"${PROJECT_SOURCE_DIR}/src/error.c"

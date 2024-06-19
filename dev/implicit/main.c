@@ -14,6 +14,8 @@
 #include "platform.h"
 
 #include "scene.h"
+#include "scene_gui.h"
+
 #include "scene/state.h"
 #include "scene/object.h"
 #include "scene/implicit.h"
@@ -203,7 +205,6 @@ int main(int args, char *argv[])
 	gettimeofday(&fps_time_last, NULL);
 	fps_time_curr = fps_time_last;
 
-	float test = 0.0f;	
 
 	while(!light_platform_exit(&platform))
     	{
@@ -262,11 +263,6 @@ int main(int args, char *argv[])
 		struct nhgui_render_attribute gui_window_attribute = {
 			.width_mm = menu_width_mm,
 			.height_mm = gui_context.screen_height_mm * (float)gui_input.height_pixel/(float)gui_context.screen_resolution_y,
-		};
-
-		struct nhgui_render_attribute gui_list_attribute = {
-			.width_mm = menu_width_mm,
-			.height_mm = menu_font_mm, 
 		};
 
 		

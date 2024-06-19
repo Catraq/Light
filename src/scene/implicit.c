@@ -20,14 +20,19 @@ int light_scene_implicit_initialize(struct light_scene_state_instance *instance)
 	
 	{
 		const char *compute_shader_filename = "../data/implicit.txt";
-		uint8_t compute_shader_source[2*8192];
-		size_t read = light_file_read_buffer(compute_shader_filename, compute_shader_source, 2*8192);
+		char compute_shader_source[2*8192];
+		size_t read = light_file_read_buffer(
+				compute_shader_filename, 
+				(uint8_t *)compute_shader_source, 
+				2*8192
+		);
+
 		if(read == 0){
 			fprintf(stderr, "light_file_read_buffer() failed. Could not read %s \n", compute_shader_filename);
 			return -1;
 		}
 
-		uint8_t compute_shader_source_header[512];
+		char compute_shader_source_header[512];
 		uint32_t gen = snprintf(compute_shader_source_header, 512, 
 			"#version 430 core \n" 
 			"#define EMITTER_COUNT %u \n"
