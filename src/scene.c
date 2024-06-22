@@ -34,6 +34,18 @@ void light_scene_object_commit(
 	);
 }
 
+const char *
+light_scene_object_implicit_name(struct light_scene_instance *instance, uint32_t index)
+{
+	return instance->state_instance.implicit_instance.implicit_function_name[index];
+}
+
+uint32_t 
+light_scene_object_implicit_name_count(struct light_scene_instance *instance)
+{
+	return instance->state_instance.implicit_instance.implicit_function_name_count;
+}
+
 
 
 int light_scene_initialize(

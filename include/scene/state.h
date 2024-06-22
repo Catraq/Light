@@ -1,6 +1,7 @@
 #ifndef SCENE_STATE_H
 #define SCENE_STATE_H
 
+#include "config.h"
 #include "surface.h"
 #include "framebuffer.h"
 
@@ -19,6 +20,10 @@ struct light_scene_implicit_instance
 	GLuint light_buffer;
 
 	GLuint program;
+
+	
+	uint32_t implicit_function_name_count;
+	char implicit_function_name[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT][255];
 };
 
 

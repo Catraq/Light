@@ -13,11 +13,23 @@ light_scene_object_nhgui_edit_initialize(struct light_scene_object_nhgui_edit *e
 		.selected_field_color = {.x = 1.0, .y = 1.0, .z = 1.0},	
 	
 	};
+
+	
+	edit->gui_function_list = (struct nhgui_object_text_list){
+		.char_scroll_per_sec = 1,
+		.text_color = {.x = 1.0, .y = 1.0, .z = 1.0},	
+		.field_color = {.x = 0.0, .y = 0.0, .z = 0.0},	
+		.selected_text_color = {.x = 0.0, .y = 0.0, .z = 0.0},	
+		.selected_field_color = {.x = 1.0, .y = 1.0, .z = 1.0},	
+	
+	};
+
 }
 
 struct nhgui_result
 light_scene_object_nhgui_edit(
 		struct light_scene_object_nhgui_edit *gui_edit,
+		struct light_scene_instance *scene,
 		const struct nhgui_context *gui_context,
 		const struct nhgui_object_font *gui_font,
 		struct nhgui_input *gui_input,
@@ -69,9 +81,13 @@ light_scene_object_nhgui_edit(
 	if(gui_edit->gui_object_list.selected > 0)
 	{
 
+		uint32_t object_index = gui_edit->gui_object_list.selected_index;
 
 		if(gui_edit->last_selected_index != gui_edit->gui_object_list.selected_index)
 		{
+			gui_edit->gui_function_list.selected = 1;
+			gui_edit->gui_function_list.selected_index = objects[object_index].object_index;
+
 			gui_edit->last_selected_index = gui_edit->gui_object_list.selected_index;
 
 			gui_edit->x_input_field = (struct nhgui_object_input_field_float) {};
@@ -90,7 +106,6 @@ light_scene_object_nhgui_edit(
 
 
 
-		uint32_t object_index = gui_edit->gui_object_list.selected_index;
 
 		struct nhgui_render_attribute gui_input_field_attribute = {
 			.height_mm = gui_font_mm,	
@@ -243,6 +258,40 @@ light_scene_object_nhgui_edit(
 				gui_result,
 				&objects[object_index].scale.z	
 		);
+
+		gui_result = nhgui_result_dec_y(gui_result);
+		gui_result = nhgui_result_rewind_x_to(gui_result, gui_f_result);
+
+		uint32_t function_name_length[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT];
+		char *function_name_ptr[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT];
+
+		uint32_t function_name_count = light_scene_object_implicit_name_count(scene);
+
+		for(uint32_t i = 0; i < function_name_count ; i++){
+			const char * name = light_scene_object_implicit_name(scene, i);
+			uint32_t name_length = strlen(name);
+
+			function_name_ptr[i] = name;
+			function_name_length[i] = name_length;
+
+		}
+
+
+		gui_result = nhgui_object_text_list(
+			&gui_edit->gui_function_list,
+			gui_context, 
+			(const char **)function_name_ptr,
+			function_name_length,
+			function_name_count, 
+			gui_font, 
+			&gui_list_attribute,
+			gui_input, 
+			gui_result
+		);
+		
+		objects[object_index].object_index = gui_edit->gui_function_list.selected_index;
+
+		
 	}
 
 	return gui_result;

@@ -52,6 +52,18 @@ light_scene_object_commit(
 		uint32_t object_count
 );
 
+const char *
+light_scene_object_implicit_name(
+		struct light_scene_instance *instance,
+	       	uint32_t index
+);
+
+uint32_t 
+light_scene_object_implicit_name_count(
+		struct light_scene_instance *instance
+);
+
+
 int
 light_scene_initialize(
 		struct light_scene_instance *instance,

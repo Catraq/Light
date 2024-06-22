@@ -1,0 +1,7 @@
+float implicit_cylinder(vec3 p)
+{
+	float radius = 1.0;
+	float height = 1.0;
+	vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(radius, height);
+	return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));			
+}

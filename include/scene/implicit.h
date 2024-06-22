@@ -5,6 +5,7 @@
 
 #include "misc/file.h"
 
+#include "config.h"
 #include "shader.h"
 #include "scene.h"
 #include "object.h"

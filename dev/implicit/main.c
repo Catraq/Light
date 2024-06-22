@@ -168,26 +168,25 @@ int main(int args, char *argv[])
 	glDisable(GL_BLEND);
 
 
-	
-
-
 	const uint32_t object_size = 10;
 	const uint32_t object_count = 3;
 
 	struct light_scene_object objects[object_size];
 	memset(objects, 0, sizeof(objects));
 
-	objects[0].position = (struct vec3){.x=0, .y=0, .z=10};
-	objects[0].scale= (struct vec3){.x=1, .y=1, .z=1};
-	objects[0].object_index = 0;
 
-	objects[1].position = (struct vec3){.x=3, .y=0, .z=10};
-	objects[1].scale= (struct vec3){.x=1, .y=1, .z=1};
-	objects[1].object_index = 1;
+	
+	uint32_t implicit_function_name_count = light_scene_object_implicit_name_count(&scene);	
+	for(uint32_t i = 0; i < implicit_function_name_count; i++)
+	{	
+		const char *implicit_function_name = light_scene_object_implicit_name(&scene, i);
+		printf("Object(%u) with implicit function %s \n", i, implicit_function_name);
+		
+		objects[i].position = (struct vec3){.x=i*3, .y=0, .z=10};
+		objects[i].scale= (struct vec3){.x=1, .y=1, .z=1};
+		objects[i].object_index = i;
 
-	objects[2].position = (struct vec3){.x=6, .y=0, .z=10};
-	objects[2].scale= (struct vec3){.x=1, .y=1, .z=1};
-	objects[2].object_index = 2;
+	}
 
 	light_scene_object_commit(&scene.state_instance, objects, object_count);
 
@@ -283,6 +282,7 @@ int main(int args, char *argv[])
 		
 		result = light_scene_object_nhgui_edit(
 				&object_nhgui_edit,
+				&scene, 
 				&gui_context,
 				&gui_font,
 				&gui_input,
