@@ -5,6 +5,8 @@
 #include "surface.h"
 #include "framebuffer.h"
 
+#include "scene/object.h"
+
 
 struct light_scene_implicit_build
 {
@@ -16,10 +18,17 @@ struct light_scene_implicit_build
 
 struct light_scene_implicit_instance
 {
+
+	uint32_t object_node_count;
+
 	GLuint object_node_buffer;
 	GLuint light_buffer;
 
-	GLuint program;
+	GLuint collision_pair_buffer;
+	GLuint collision_pair_counter_buffer;
+
+	GLuint render_program;
+	GLuint physic_program;
 
 	
 	uint32_t implicit_function_name_count;
@@ -107,11 +116,12 @@ void light_scene_state_bind(
 		struct light_scene_state_instance *instance
 );
 
-void light_scene_state_dispatch(
+uint32_t light_scene_state_dispatch(
 		struct light_scene_state_instance *instance,
 	       	struct light_framebuffer *framebuffer,
-	       	uint32_t width, uint32_t height,
-	       	float deltatime
+	       	uint32_t width, uint32_t height,float deltatime,
+		struct light_scene_implicit_collision *collision,
+		const uint32_t collision_count
 );
 
 #endif 

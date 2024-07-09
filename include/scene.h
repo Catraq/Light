@@ -38,10 +38,16 @@ struct light_scene_instance
 struct light_scene_object
 {
 	uint32_t object_index;
+	struct vec3 scale;
 
 	struct vec3 position;
+	struct vec3 velocity;
+
 	struct vec3 rotation;
-	struct vec3 scale;
+	struct vec3 angular_velocity;
+
+	float mass;
+
 };
 
 
@@ -77,11 +83,13 @@ light_scene_deinitialize(
 );
 
 int 
-light_scene_bind(
+light_scene_update(
 		struct light_scene_instance *instance,
 		struct light_platform *platform, 
 	       	uint32_t width, uint32_t height,
-	       	const float deltatime
+	       	const float deltatime,
+		struct light_scene_object *objects, 
+		uint32_t object_count
 );
 
 

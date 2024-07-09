@@ -3,6 +3,52 @@
 #include <math.h>
 #include <stdint.h> 
 
+struct mat3x3 m3x3id(void)
+{
+	struct mat3x3 result = {};
+	result.m[ 0 ] = 1.0f; result.m[ 3 ] = 0.0f; result.m[ 6 ] = 0.0f;
+	result.m[ 1 ] = 0.0f; result.m[ 4 ] = 1.0f; result.m[ 7 ] = 0.0f;
+	result.m[ 2 ] = 0.0f; result.m[ 5 ] = 0.0f; result.m[ 8 ] = 1.0f;
+	return (result);
+}
+
+struct vec3 m3x3mulv3(struct mat3x3 lhs, struct vec3 rhs)
+{
+	struct vec3 result = {};
+	result.x = lhs.m[0] * rhs.x + lhs.m[3] * rhs.y + lhs.m[6] * rhs.z;
+	result.y = lhs.m[1] * rhs.x + lhs.m[4] * rhs.y + lhs.m[7] * rhs.z;
+	result.z = lhs.m[2] * rhs.x + lhs.m[5] * rhs.y + lhs.m[8] * rhs.z;
+	return(result);
+}
+
+struct mat3x3 m3x3inv(struct mat3x3 target, int *result)
+{
+	float det = target.m[0] * (target.m[4]*target.m[8] - target.m[5]*target.m[7])
+		  + target.m[1] * (target.m[3]*target.m[8] - target.m[5]*target.m[6])
+		  + target.m[2] * (target.m[3]*target.m[7] - target.m[4]*target.m[6]);
+	
+	struct mat3x3 inverse = {};
+
+	if(det == 0.0f){
+		*result = -1;
+		return inverse;
+	}
+
+	inverse.m[0] = 1/det * (target.m[3]*target.m[7] - target.m[4]*target.m[6]);
+	inverse.m[1] = 1/det * (target.m[7]*target.m[2] - target.m[1]*target.m[8]);
+	inverse.m[2] = 1/det * (target.m[1]*target.m[5] - target.m[4]*target.m[2]);
+	inverse.m[3] = 1/det * (target.m[6]*target.m[5] - target.m[3]*target.m[8]);
+	inverse.m[4] = 1/det * (target.m[0]*target.m[8] - target.m[6]*target.m[2]);
+	inverse.m[5] = 1/det * (target.m[3]*target.m[2] - target.m[0]*target.m[5]);
+	inverse.m[6] = 1/det * (target.m[3]*target.m[7] - target.m[6]*target.m[4]);
+	inverse.m[7] = 1/det * (target.m[6]*target.m[1] - target.m[0]*target.m[7]);
+	inverse.m[8] = 1/det * (target.m[0]*target.m[4] - target.m[3]*target.m[1]);
+
+		
+        *result = 0;
+	return inverse;	
+}
+
 struct mat4x4 m4x4id(void)
 {
 	struct mat4x4 result;
@@ -25,6 +71,16 @@ struct mat4x4 m4x4mul(struct mat4x4 lhs, struct mat4x4 rhs)
 				rhs.m[i*4 + 3] * lhs.m[3*4 + j];
 		}
 	}
+	return(result);
+}
+
+struct vec4 m4x4mulv4(struct mat4x4 lhs, struct vec4 rhs) 
+{
+	struct vec4 result = {};
+	result.x = lhs.m[0] * rhs.x + lhs.m[4] * rhs.y + lhs.m[8] * rhs.z + lhs.m[12] * rhs.w;
+	result.y = lhs.m[1] * rhs.x + lhs.m[5] * rhs.y + lhs.m[9] * rhs.z + lhs.m[13] * rhs.w;
+	result.z = lhs.m[2] * rhs.x + lhs.m[6] * rhs.y + lhs.m[10] * rhs.z + lhs.m[14] * rhs.w;
+	result.w = lhs.m[3] * rhs.x + lhs.m[7] * rhs.y + lhs.m[11] * rhs.z + lhs.m[15] * rhs.w;
 	return(result);
 }
 

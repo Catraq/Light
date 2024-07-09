@@ -1,0 +1,41 @@
+
+layout(binding=0) uniform atomic_uint collision_count;
+
+layout(std430, binding=1) buffer collision_ssbo
+{
+	collision_pair collision[];
+};
+
+
+struct pair
+{
+	uint a;
+	uint b;
+};
+
+pair index_to_pair(uint index)
+{
+	uint n = uint(floor((sqrt(8*index+1)-1)/2));
+	uint a = index - (n * (n+1))/2;
+	uint b = n + 1;
+	pair p;
+	p.a = a;
+	p.b = b;
+	return p;
+}
+
+void main()
+{
+	uint pair_index = gl_GlobalInvocationID.x; 
+	pair p = index_to_pair(pair_index);
+	
+	intersection t = intersect(p.a, p.b);
+	if(t.intersection > 0){
+		uint index = atomicCounterIncrement(collision_count);	
+		collision[index].a = p.a;
+		collision[index].b = p.b;
+		collision[index].position = t.position;
+	}
+}
+
+

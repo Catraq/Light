@@ -20,9 +20,15 @@ void light_scene_implicit_deinitialize(
 	       	struct light_scene_state_instance  *instance
 );
 
-void light_scene_implicit_dispatch(
+void light_scene_implicit_dispatch_render(
 	       	struct light_scene_state_instance  *instance,
 	       	uint32_t width, uint32_t height
+);
+
+uint32_t light_scene_implicit_dispatch_physic(
+	       	struct light_scene_state_instance  *instance,
+	       	struct light_scene_implicit_collision *collision,
+		const uint32_t collision_count
 );
 
 void light_scene_implicit_commit_objects(

@@ -71,6 +71,9 @@ void light_scene_state_deinitialize(
 
 void light_scene_state_bind(struct light_scene_state_instance *instance)
 {
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, instance->implicit_instance.collision_pair_counter_buffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, instance->implicit_instance.collision_pair_buffer);
+
 	glBindBufferBase(GL_UNIFORM_BUFFER, 3, instance->implicit_instance.light_buffer);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 5, instance->implicit_instance.object_node_buffer);
 
@@ -80,7 +83,13 @@ void light_scene_state_bind(struct light_scene_state_instance *instance)
 }
 
 
-void light_scene_state_dispatch(struct light_scene_state_instance *instance, struct light_framebuffer *framebuffer, uint32_t width, uint32_t height, float deltatime)
+uint32_t light_scene_state_dispatch(
+		struct light_scene_state_instance *instance,
+	       	struct light_framebuffer *framebuffer,
+	       	uint32_t width, uint32_t height, float deltatime,
+		struct light_scene_implicit_collision *collision,
+		const uint32_t collision_count
+		)
 {	
 
 
@@ -101,6 +110,11 @@ void light_scene_state_dispatch(struct light_scene_state_instance *instance, str
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 
-	light_scene_implicit_dispatch(instance, width, height);
+	light_scene_implicit_dispatch_render(instance, width, height);
 
+	uint32_t node_count = instance->implicit_instance.object_node_count;
+	uint32_t pair_count = node_count*(node_count - 1)/2;
+
+
+	return light_scene_implicit_dispatch_physic(instance, collision, collision_count);
 }

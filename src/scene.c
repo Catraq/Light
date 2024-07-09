@@ -113,11 +113,13 @@ void light_scene_deinitialize(struct light_scene_instance *instance)
 }
 
 
-int light_scene_bind(
+int light_scene_update(
 		struct light_scene_instance *instance,
 	       	struct light_platform *platform,
 	       	uint32_t width, uint32_t height,
-	       	const float deltatime)
+	       	const float deltatime,
+		struct light_scene_object *objects,
+		uint32_t object_count)
 {	
 	struct light_frame_info frame_result = light_frame_info_update(
 			&instance->frame_info,
@@ -152,6 +154,78 @@ int light_scene_bind(
 	
 	light_camera_buffer_bind(&instance->view_state);
 	CHECK_GL_ERROR();
+
+
+
+	uint32_t object_node_count = instance->state_instance.implicit_instance.object_node_count;
+	uint32_t object_node_pair = object_node_count*(object_node_count - 1)/2;
+
+	struct light_scene_implicit_collision collision[object_node_pair];
+
+	uint32_t collision_count = light_scene_state_dispatch(
+			&instance->state_instance, 
+			&instance->framebuffer, 
+			width, height, deltatime,
+			collision,
+			object_node_pair
+			);
+	
+	struct mat3x3 inerita = m3x3id();
+	for(uint32_t i = 0; i < 3; i++)
+	{
+		inerita.m[3*i+i] = 10.0f;	
+	}
+	
+	int result = 0;
+	struct mat3x3 inertia_inv = m3x3inv(inerita, &result);
+	
+
+	for(uint32_t k = 0; k < collision_count; k++){
+		uint32_t i = collision[k].a;			
+		uint32_t j = collision[k].b;			
+
+		struct vec3 d = v3sub(objects[i].position, objects[j].position);
+		struct vec3 r_a = v3sub(collision[k].position, objects[i].position);
+		struct vec3 r_b = v3sub(collision[k].position, objects[j].position);
+		
+		struct vec3 J_vec3[4];
+		J_vec3[0] = v3scl(d, -1);
+		J_vec3[1] = v3scl(v3cross(r_a, d), -1);
+		J_vec3[2] = d;
+		J_vec3[3] = v3cross(r_b, d);
+
+		struct vec3 J_M_inv_vec3[4];
+		J_M_inv_vec3[0] = v3scl(J_vec3[0], 1/objects[i].mass);
+		J_M_inv_vec3[1] = m3x3mulv3(inertia_inv, J_vec3[1]);
+		J_M_inv_vec3[2] = v3scl(J_vec3[2], 1/objects[j].mass);
+		J_M_inv_vec3[3] = m3x3mulv3(inertia_inv, J_vec3[3]);
+
+		float J_M_inv_J_t = v3dot(J_M_inv_vec3[0], J_vec3[0]) + v3dot(J_M_inv_vec3[1], J_vec3[1]) + v3dot(J_M_inv_vec3[2], J_vec3[2])  + v3dot(J_M_inv_vec3[3], J_vec3[3]); 
+		float J_dq_dt = v3dot(J_vec3[0], objects[i].velocity) + v3dot(J_vec3[1], objects[i].angular_velocity) + v3dot(J_vec3[2], objects[j].velocity) + v3dot(J_vec3[3], objects[j].angular_velocity);
+
+		float k_d = 0.5/deltatime;
+
+
+		float lambda = (-J_dq_dt/deltatime - k_d) /(J_M_inv_J_t);
+		if(lambda > 0)
+			lambda = 0;
+
+		objects[i].velocity = v3add(objects[i].velocity, v3scl(J_vec3[0], lambda*deltatime/objects[i].mass));
+		objects[i].angular_velocity = v3add(objects[i].angular_velocity, v3scl(m3x3mulv3(inertia_inv, J_vec3[1]), lambda*deltatime));
+
+		objects[j].velocity = v3add(objects[j].velocity, v3scl(J_vec3[2], lambda*deltatime/objects[j].mass));
+		objects[j].angular_velocity = v3add(objects[j].angular_velocity, v3scl(m3x3mulv3(inertia_inv, J_vec3[3]), lambda*deltatime));
+		
+	}
+		
+	
+	for(uint32_t i = 0; i < object_count; i++){
+		objects[i].position = v3add(objects[i].position, v3scl(objects[i].velocity, deltatime));
+		objects[i].rotation = v3add(objects[i].rotation, v3scl(objects[i].angular_velocity, deltatime));
+	}
+
+
+
 
 	return 0;
 }

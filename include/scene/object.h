@@ -39,49 +39,15 @@ struct light_scene_particle_emitter_normal
 	uint32_t padding[3];
 };
 
-
-/*
- * mirrored in gpu. have to correspond with shader input. 
- */
-struct light_scene_implicit_sphere_instance
+struct light_scene_implicit_collision
 {
-	struct vec3 color;
-
-	float radius;
+	struct vec3 position;
+	float dummy_1;
+	uint32_t a;
+	uint32_t b;
+	uint32_t dummy_2[2];
 };
 
-
-/*
- * mirrored in gpu. have to correspond with shader input. 
- */
-struct light_scene_implicit_cylinder_instance
-{
-	struct vec3 color;
-
-	/* radius of each cylinder  */
-	float radius; 
-
-	/* height of cylinder */
-	float height;
-	
-	/* Required padding */
-	float dummy[3];
-};
-
-/*
- * mirrored in gpu. have to correspond with shader input. 
- */
-struct light_scene_implicit_box_instance
-{
-	struct vec3 color;
-
-	float padding1;
-
-	/* box dimension */	
-	struct vec3 dimension;
-
-	float padding2;
-};
 
 
 /*

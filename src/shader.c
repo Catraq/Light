@@ -1,5 +1,62 @@
 #include "shader.h"
 
+#include <stdio.h>
+#include <stdint.h>
+
+
+GLuint light_shader_compute_create(
+		const char **compute_source, 
+		uint32_t *compute_source_length, 
+		uint32_t compute_source_count
+)
+{
+	
+	GLuint compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(compute_shader, compute_source_count, compute_source, compute_source_length);
+	glCompileShader(compute_shader);
+
+	
+	GLint compiled = GL_FALSE;
+	glGetShaderiv(compute_shader, GL_COMPILE_STATUS, &compiled);
+	if(compiled == GL_FALSE){
+		GLchar log[8192];
+		GLsizei length;
+		glGetShaderInfoLog(compute_shader, 8192, &length, log);
+		if( length != 0 )
+		{
+			printf(" ---- Computeshader compile log ---- \n %s \n", log);
+		}
+
+		/* Cleanup and return */	
+		glDeleteShader(compute_shader);
+
+		return 0;
+	}
+	
+	GLuint program = glCreateProgram();
+
+	glAttachShader(program, compute_shader);
+	glLinkProgram(program);
+	glDetachShader(program, compute_shader);
+	glDeleteShader(compute_shader);
+	
+	GLint linked = GL_FALSE;
+	glGetProgramiv(program, GL_LINK_STATUS, &linked);
+	if(linked == GL_FALSE) {
+		GLsizei length;
+		GLchar log[8192];
+		glGetProgramInfoLog(program, 8192, &length, log);
+		printf(" ---- Program Link log ---- \n %s \n", log);
+
+		glDeleteProgram(program);
+		return 0;
+	}
+
+	
+	return program;
+}
+
+
 
 GLuint light_shader_vertex_create(
 		const char **vertex_source, 

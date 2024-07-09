@@ -9,4 +9,7 @@
 /* Maximum number of implicit functions that can be loaded from shader files */
 #define LIGHT_IMPLICIT_FUNCTION_MAX_COUNT 8
 
+
+#define LIGHT_IMPLICIT_PHYSIC_FUNCTION_SIZE 8192*4
+
 #endif 
