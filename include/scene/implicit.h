@@ -20,6 +20,16 @@ void light_scene_implicit_deinitialize(
 	       	struct light_scene_state_instance  *instance
 );
 
+void
+light_scene_implicit_compute_inerita(
+		struct light_scene_state_instance *instance,
+		struct light_scene_implicit_object *objects, 
+		uint32_t object_count,
+		struct mat3x3 *object_inerita_without_mass, 
+		uint32_t samples
+
+);
+
 void light_scene_implicit_dispatch_render(
 	       	struct light_scene_state_instance  *instance,
 	       	uint32_t width, uint32_t height

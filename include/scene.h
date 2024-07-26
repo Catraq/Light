@@ -37,6 +37,12 @@ struct light_scene_instance
 
 struct light_scene_object
 {
+	struct mat3x3 inertia;
+};
+
+
+struct light_scene_object_node
+{
 	uint32_t object_index;
 	struct vec3 scale;
 
@@ -48,24 +54,25 @@ struct light_scene_object
 
 	float mass;
 
+	struct mat3x3 inertia_inv;
+
 };
 
-
 void 
-light_scene_object_commit(
+light_scene_object_node_commit(
 		struct light_scene_state_instance *instance,
-		struct light_scene_object *object,
+		struct light_scene_object_node *object,
 		uint32_t object_count
 );
 
 const char *
-light_scene_object_implicit_name(
+light_scene_object_node_implicit_name(
 		struct light_scene_instance *instance,
 	       	uint32_t index
 );
 
 uint32_t 
-light_scene_object_implicit_name_count(
+light_scene_object_node_implicit_name_count(
 		struct light_scene_instance *instance
 );
 
@@ -88,7 +95,7 @@ light_scene_update(
 		struct light_platform *platform, 
 	       	uint32_t width, uint32_t height,
 	       	const float deltatime,
-		struct light_scene_object *objects, 
+		struct light_scene_object_node *objects, 
 		uint32_t object_count
 );
 

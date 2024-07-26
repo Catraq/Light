@@ -2,7 +2,7 @@
 
 
 void 
-light_scene_object_nhgui_edit_initialize(struct light_scene_object_nhgui_edit *edit)
+light_scene_object_node_nhgui_edit_initialize(struct light_scene_object_node_nhgui_edit *edit)
 {
 	
 	edit->gui_object_list = (struct nhgui_object_text_list){
@@ -27,8 +27,8 @@ light_scene_object_nhgui_edit_initialize(struct light_scene_object_nhgui_edit *e
 }
 
 struct nhgui_result
-light_scene_object_nhgui_edit(
-		struct light_scene_object_nhgui_edit *gui_edit,
+light_scene_object_node_nhgui_edit(
+		struct light_scene_object_node_nhgui_edit *gui_edit,
 		struct light_scene_instance *scene,
 		const struct nhgui_context *gui_context,
 		const struct nhgui_object_font *gui_font,
@@ -36,7 +36,7 @@ light_scene_object_nhgui_edit(
 		struct nhgui_result gui_result,
 		const float gui_menu_width_mm,
 		const float gui_font_mm,
-		struct light_scene_object *objects,
+		struct light_scene_object_node *objects,
 		const uint32_t object_count
 )
 {
@@ -265,10 +265,10 @@ light_scene_object_nhgui_edit(
 		uint32_t function_name_length[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT];
 		char *function_name_ptr[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT];
 
-		uint32_t function_name_count = light_scene_object_implicit_name_count(scene);
+		uint32_t function_name_count = light_scene_object_node_implicit_name_count(scene);
 
 		for(uint32_t i = 0; i < function_name_count ; i++){
-			const char * name = light_scene_object_implicit_name(scene, i);
+			const char * name = light_scene_object_node_implicit_name(scene, i);
 			uint32_t name_length = strlen(name);
 
 			function_name_ptr[i] = name;

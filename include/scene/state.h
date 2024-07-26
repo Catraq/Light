@@ -18,21 +18,42 @@ struct light_scene_implicit_build
 
 struct light_scene_implicit_instance
 {
-
+	/* Number of object nodes in the object node buffer. */
 	uint32_t object_node_count;
-
+	
+	/* GPU buffers */
 	GLuint object_node_buffer;
 	GLuint light_buffer;
-
 	GLuint collision_pair_buffer;
-	GLuint collision_pair_counter_buffer;
 
+	/* Used for atmoic counter */
+	GLuint collision_pair_counter_buffer;
+	
+	/* Program used for rendering */
 	GLuint render_program;
+
+	/* Program used for physic intersection */
 	GLuint physic_program;
 
-	
+	/* Program used for calulcating volumes */
+	GLuint volume_program;
+
+	GLint volume_program_samples_uniform;
+	GLint volume_program_node_index_uniform;
+
+	/* Program used for calculating inerita */
+	GLuint inertia_program;
+
+	GLint inertia_program_samples_uniform;
+	GLint inertia_program_node_index_uniform;
+
+
+	/* Number of implicit functions found */	
 	uint32_t implicit_function_name_count;
+
+	/* name of the implicit function */
 	char implicit_function_name[LIGHT_IMPLICIT_FUNCTION_MAX_COUNT][255];
+
 };
 
 

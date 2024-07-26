@@ -21,10 +21,24 @@ struct vec3 m3x3mulv3(struct mat3x3 lhs, struct vec3 rhs)
 	return(result);
 }
 
+struct mat3x3 m3x3mul(struct mat3x3 lhs, struct mat3x3 rhs) 
+{
+	struct mat3x3 result;
+	for (uint8_t i = 0 ; i < 3 ; i++) {
+		for (uint8_t j = 0 ; j < 3 ; j++) {
+			result.m[i*3 + j] = rhs.m[i*3] * lhs.m[ j ]  +
+				rhs.m[i*3 + 1] * lhs.m[1*3 + j] +
+				rhs.m[i*3 + 2] * lhs.m[2*3 + j];
+		}
+	}
+	return(result);
+}
+
+
 struct mat3x3 m3x3inv(struct mat3x3 target, int *result)
 {
 	float det = target.m[0] * (target.m[4]*target.m[8] - target.m[5]*target.m[7])
-		  + target.m[1] * (target.m[3]*target.m[8] - target.m[5]*target.m[6])
+		  - target.m[1] * (target.m[3]*target.m[8] - target.m[5]*target.m[6])
 		  + target.m[2] * (target.m[3]*target.m[7] - target.m[4]*target.m[6]);
 	
 	struct mat3x3 inverse = {};
@@ -34,7 +48,7 @@ struct mat3x3 m3x3inv(struct mat3x3 target, int *result)
 		return inverse;
 	}
 
-	inverse.m[0] = 1/det * (target.m[3]*target.m[7] - target.m[4]*target.m[6]);
+	inverse.m[0] = 1/det * (target.m[4]*target.m[8] - target.m[7]*target.m[5]);
 	inverse.m[1] = 1/det * (target.m[7]*target.m[2] - target.m[1]*target.m[8]);
 	inverse.m[2] = 1/det * (target.m[1]*target.m[5] - target.m[4]*target.m[2]);
 	inverse.m[3] = 1/det * (target.m[6]*target.m[5] - target.m[3]*target.m[8]);

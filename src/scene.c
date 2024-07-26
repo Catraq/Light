@@ -1,15 +1,55 @@
 #include "scene.h"
 
 #include "error.h"
+#include "config.h"
 
-void light_scene_object_commit(
+void light_scene_object_node_commit(
 		struct light_scene_state_instance *instance,
-		struct light_scene_object *object,
+		struct light_scene_object_node *object,
 		uint32_t object_count
 )
 {
 	struct light_scene_implicit_object object_node[object_count];
 	
+	for(uint32_t i = 0; i < object_count; i++)
+	{
+
+		struct mat4x4 TRS = m4x4scl(object[i].scale);
+		
+		int dummy = 0;
+		object_node[i].object_index = object[i].object_index;
+		object_node[i].translation = TRS;
+		object_node[i].translation_inv = m4x4inv(&TRS, &dummy); 
+
+	}
+
+	struct mat3x3 object_inertia[object_count];
+	light_scene_implicit_compute_inerita(
+			instance,
+			object_node, 
+			object_count,
+			object_inertia, 
+			LIGHT_SCENE_IMPLICIT_INERITA_SAMPLE_COUNT
+	);
+
+	for(uint32_t i = 0; i < object_count; i++)
+	{
+		for(uint32_t j = 0; j < 9; j++)
+			object_inertia[i].m[j] = object_inertia[i].m[j] * object[i].mass;
+
+		int dummy = 0;
+		object[i].inertia_inv = m3x3inv(object_inertia[i], &dummy);
+
+		for(uint32_t j = 0; j < 3; j++){
+			for(uint32_t k = 0; k < 3; k++){
+				printf("%u->(%f, %f), ", 3*k +j, object_inertia[i].m[k*3 + j], object[i].inertia_inv.m[k*3 + j]);	
+			}
+			printf("\n");
+		}
+		printf("\n");
+
+	}
+
 	for(uint32_t i = 0; i < object_count; i++)
 	{
 
@@ -32,16 +72,17 @@ void light_scene_object_commit(
 			object_node, 
 			object_count
 	);
+
 }
 
 const char *
-light_scene_object_implicit_name(struct light_scene_instance *instance, uint32_t index)
+light_scene_object_node_implicit_name(struct light_scene_instance *instance, uint32_t index)
 {
 	return instance->state_instance.implicit_instance.implicit_function_name[index];
 }
 
 uint32_t 
-light_scene_object_implicit_name_count(struct light_scene_instance *instance)
+light_scene_object_node_implicit_name_count(struct light_scene_instance *instance)
 {
 	return instance->state_instance.implicit_instance.implicit_function_name_count;
 }
@@ -118,7 +159,7 @@ int light_scene_update(
 	       	struct light_platform *platform,
 	       	uint32_t width, uint32_t height,
 	       	const float deltatime,
-		struct light_scene_object *objects,
+		struct light_scene_object_node *objects,
 		uint32_t object_count)
 {	
 	struct light_frame_info frame_result = light_frame_info_update(
@@ -170,16 +211,6 @@ int light_scene_update(
 			object_node_pair
 			);
 	
-	struct mat3x3 inerita = m3x3id();
-	for(uint32_t i = 0; i < 3; i++)
-	{
-		inerita.m[3*i+i] = 10.0f;	
-	}
-	
-	int result = 0;
-	struct mat3x3 inertia_inv = m3x3inv(inerita, &result);
-	
-
 	for(uint32_t k = 0; k < collision_count; k++){
 		uint32_t i = collision[k].a;			
 		uint32_t j = collision[k].b;			
@@ -196,9 +227,9 @@ int light_scene_update(
 
 		struct vec3 J_M_inv_vec3[4];
 		J_M_inv_vec3[0] = v3scl(J_vec3[0], 1/objects[i].mass);
-		J_M_inv_vec3[1] = m3x3mulv3(inertia_inv, J_vec3[1]);
+		J_M_inv_vec3[1] = m3x3mulv3(objects[i].inertia_inv, J_vec3[1]);
 		J_M_inv_vec3[2] = v3scl(J_vec3[2], 1/objects[j].mass);
-		J_M_inv_vec3[3] = m3x3mulv3(inertia_inv, J_vec3[3]);
+		J_M_inv_vec3[3] = m3x3mulv3(objects[j].inertia_inv, J_vec3[3]);
 
 		float J_M_inv_J_t = v3dot(J_M_inv_vec3[0], J_vec3[0]) + v3dot(J_M_inv_vec3[1], J_vec3[1]) + v3dot(J_M_inv_vec3[2], J_vec3[2])  + v3dot(J_M_inv_vec3[3], J_vec3[3]); 
 		float J_dq_dt = v3dot(J_vec3[0], objects[i].velocity) + v3dot(J_vec3[1], objects[i].angular_velocity) + v3dot(J_vec3[2], objects[j].velocity) + v3dot(J_vec3[3], objects[j].angular_velocity);
@@ -211,13 +242,12 @@ int light_scene_update(
 			lambda = 0;
 
 		objects[i].velocity = v3add(objects[i].velocity, v3scl(J_vec3[0], lambda*deltatime/objects[i].mass));
-		objects[i].angular_velocity = v3add(objects[i].angular_velocity, v3scl(m3x3mulv3(inertia_inv, J_vec3[1]), lambda*deltatime));
+		objects[i].angular_velocity = v3add(objects[i].angular_velocity, v3scl(m3x3mulv3(objects[i].inertia_inv, J_vec3[1]), lambda * deltatime));
 
 		objects[j].velocity = v3add(objects[j].velocity, v3scl(J_vec3[2], lambda*deltatime/objects[j].mass));
-		objects[j].angular_velocity = v3add(objects[j].angular_velocity, v3scl(m3x3mulv3(inertia_inv, J_vec3[3]), lambda*deltatime));
+		objects[j].angular_velocity = v3add(objects[j].angular_velocity, v3scl(m3x3mulv3(objects[j].inertia_inv, J_vec3[3]), lambda * deltatime));
 		
 	}
-		
 	
 	for(uint32_t i = 0; i < object_count; i++){
 		objects[i].position = v3add(objects[i].position, v3scl(objects[i].velocity, deltatime));
@@ -225,6 +255,29 @@ int light_scene_update(
 	}
 
 
+	struct light_scene_implicit_object object_node[object_count];
+	for(uint32_t i = 0; i < object_count; i++)
+	{
+
+		struct mat4x4 TRS = m4x4mul(
+				m4x4rote(objects[i].rotation),
+				m4x4scl(objects[i].scale)
+		);
+
+		TRS = m4x4mul(m4x4trs(objects[i].position), TRS);
+		
+		int dummy = 0;
+		object_node[i].object_index = objects[i].object_index;
+		object_node[i].translation = TRS;
+		object_node[i].translation_inv = m4x4inv(&TRS, &dummy); 
+
+	}
+
+	light_scene_implicit_commit_objects(
+			&instance->state_instance,
+			object_node, 
+			object_count
+	);
 
 
 	return 0;

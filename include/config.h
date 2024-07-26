@@ -12,4 +12,7 @@
 
 #define LIGHT_IMPLICIT_PHYSIC_FUNCTION_SIZE 8192*4
 
+/* Number of samples used to calculate the volume and inerita of the implicit function */
+#define LIGHT_SCENE_IMPLICIT_INERITA_SAMPLE_COUNT 256
+
 #endif 

@@ -4,7 +4,7 @@
 #include "scene.h"
 #include "nhgui.h"
 
-struct light_scene_object_nhgui_edit
+struct light_scene_object_node_nhgui_edit
 {
 	uint32_t last_selected_index;
 
@@ -27,13 +27,13 @@ struct light_scene_object_nhgui_edit
 
 
 void 
-light_scene_object_nhgui_edit_initialize(
-		struct light_scene_object_nhgui_edit *edit
+light_scene_object_node_nhgui_edit_initialize(
+		struct light_scene_object_node_nhgui_edit *edit
 );
 
 struct nhgui_result
-light_scene_object_nhgui_edit(
-		struct light_scene_object_nhgui_edit *gui_edit,
+light_scene_object_node_nhgui_edit(
+		struct light_scene_object_node_nhgui_edit *gui_edit,
 		struct light_scene_instance *scene,
 		const struct nhgui_context *gui_context,
 		const struct nhgui_object_font *gui_font,
@@ -41,7 +41,7 @@ light_scene_object_nhgui_edit(
 		struct nhgui_result gui_result,
 		const float gui_menu_width_mm,
 		const float gui_font_mm,
-		struct light_scene_object *objects,
+		struct light_scene_object_node *objects,
 		const uint32_t object_count
 );
 

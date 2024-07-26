@@ -1,0 +1,74 @@
+layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
+
+
+struct object_node
+{
+	uint object_index;
+	uint padding[3];
+
+	
+	mat4 translation;
+	mat4 translation_inv;
+};
+
+layout(binding=1) uniform nodes_ubo
+{
+	object_node nodes[OBJECT_NODE_COUNT];
+};
+
+uniform uint node_index;
+
+uniform float samples;
+
+struct inertia_samples
+{
+	uint m[16];
+};
+
+layout(binding=0) buffer inerita_ssbo
+{
+	 inertia_samples inertia[];
+};
+
+
+float nrand(vec2 n)
+{
+	return fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
+}
+
+
+void main()
+{
+	float x = 5*(2*float(gl_GlobalInvocationID.x)/samples-1);
+	float y = 5*(2*float(gl_GlobalInvocationID.y)/samples-1);
+	float z = 5*(2*float(gl_GlobalInvocationID.z)/samples-1);
+	
+	vec3 p = vec3(x,y,z);
+	
+	uint inside = function_inside(nodes[node_index].object_index, (nodes[node_index].translation_inv * vec4(p, 0)).xyz);
+
+	uint I_xx = inside*uint(1000*(p.y*p.y+p.z*p.z));
+	uint I_yy = inside*uint(1000*(p.x*p.x+p.z*p.z));
+	uint I_zz = inside*uint(1000*(p.x*p.x+p.y*p.y));
+
+	uint I_yz = inside*uint(1000*p.y*p.z);
+	uint I_xy = inside*uint(1000*p.x*p.y);
+	uint I_xz = inside*uint(1000*p.x*p.z);
+	
+	atomicAdd(inertia[node_index].m[0], I_xx);
+	atomicAdd(inertia[node_index].m[4], I_yy);
+	atomicAdd(inertia[node_index].m[8], I_zz);
+	
+	atomicAdd(inertia[node_index].m[7], I_yz);
+	atomicAdd(inertia[node_index].m[3], I_xy);
+	atomicAdd(inertia[node_index].m[6], I_xz);
+	
+	
+	atomicAdd(inertia[node_index].m[5], I_yz);
+	atomicAdd(inertia[node_index].m[1], I_xy);
+	atomicAdd(inertia[node_index].m[2], I_xz);
+	
+	
+	
+} 
+

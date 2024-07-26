@@ -17,6 +17,7 @@ struct mat3x3
 
 struct mat3x3 m3x3id(void);
 struct vec3 m3x3mulv3(struct mat3x3 lhs, struct vec3 rhs);
+struct mat3x3 m3x3mul(struct mat3x3 lhs, struct mat3x3 rhs);
 struct mat3x3 m3x3inv(struct mat3x3 target, int *result);
 
 
